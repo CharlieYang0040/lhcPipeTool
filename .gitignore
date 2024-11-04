@@ -1,0 +1,20 @@
+# Virtual Environment
+.venv/
+
+# VS Code
+.vscode/
+
+# Firebird Database
+Firebird_5_0/
+
+# Backup Directory
+backup/
+
+# Test Directory
+TestSequence/
+
+# Log Files
+logs/
+
+# Firebird Database Files
+*.fdb

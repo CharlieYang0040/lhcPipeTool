@@ -1,0 +1,9 @@
+{
+    "project_root": "D:/WORKDATA/lhcPipeTool/TestSequence/image",
+    "render_output": "D:\\WORKDATA\\lhcPipeTool\\TestSequence\\Render",
+    "preview_output": "D:\\WORKDATA\\lhcPipeTool\\TestSequence\\Preview",
+    "db_host": "localhost",
+    "db_name": "",
+    "db_user": "SYSDBA",
+    "db_password": ""
+}
