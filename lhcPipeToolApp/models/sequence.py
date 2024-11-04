@@ -1,5 +1,6 @@
 """시퀀스 모델"""
 from .base_model import BaseModel
+from ..database.table_manager import TableManager
 
 class Sequence(BaseModel):
     def create(self, name, project_id, description=None):
@@ -13,6 +14,11 @@ class Sequence(BaseModel):
             INSERT INTO sequences (name, project_id, description) 
             VALUES (?, ?, ?)
         """
+
+        # 테이블 구조 조회
+        table_manager = TableManager(self.connector)
+        table_structure = table_manager.get_table_structure("SEQUENCES")
+        self.logger.info(f"테이블 구조: {table_structure}")
         return self._execute(query, (name, project_id, description))
 
     def get_by_project(self, project_id):

@@ -98,3 +98,7 @@ def check_database_connection(connector):
     except Exception as e:
         logger.error(f"데이터베이스 연결 상태: 비정상 - {str(e)}", exc_info=True)
         return False
+    
+# 날짜 형식 변환
+def convert_date_format(date):
+    return date.replace(microsecond=0)

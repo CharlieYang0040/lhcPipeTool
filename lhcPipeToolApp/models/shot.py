@@ -1,5 +1,6 @@
 """샷 모델"""
 from .base_model import BaseModel
+from ..database.table_manager import TableManager
 
 class Shot(BaseModel):
     def create(self, name, sequence_id, description=None, status="pending"):
@@ -14,6 +15,11 @@ class Shot(BaseModel):
             INSERT INTO shots (name, sequence_id, description, status) 
             VALUES (?, ?, ?, ?)
         """
+        # 테이블 구조 조회
+        table_manager = TableManager(self.connector)
+        table_structure = table_manager.get_table_structure("SHOTS")
+        self.logger.info(f"테이블 구조: {table_structure}")
+        
         return self._execute(query, (str(name), sequence_id, description, status))
 
     def get_by_sequence(self, sequence_id):

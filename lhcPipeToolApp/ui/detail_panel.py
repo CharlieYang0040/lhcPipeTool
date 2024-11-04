@@ -1,7 +1,8 @@
 """디테일 패널"""
+import os, subprocess
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTextEdit, 
-    QScrollArea, QFrame, QGridLayout
+    QWidget, QVBoxLayout, QLabel, QTextEdit, QMessageBox, QHBoxLayout,
+    QScrollArea, QFrame, QGridLayout, QLineEdit, QPushButton, QApplication
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
@@ -84,7 +85,7 @@ class DetailPanel(QWidget):
             }
         """
         value_style = """
-            QTextEdit {
+            QLineEdit {
                 background-color: #2a2a2a;
                 border: 1px solid #3a3a3a;
                 color: #ffffff;
@@ -98,13 +99,35 @@ class DetailPanel(QWidget):
         for i, field in enumerate(fields):
             label = QLabel(f"{field}:")
             label.setStyleSheet(label_style)
-            value = QTextEdit()
+            value = QLineEdit()
             value.setReadOnly(True)
-            value.setMaximumHeight(30)
             value.setStyleSheet(value_style)
-            self.info_layout.addWidget(label, i, 0)
-            self.info_layout.addWidget(value, i, 1)
+            self.info_layout.addWidget(label, i * 2, 0)
+            self.info_layout.addWidget(value, i * 2, 1)
             self.info_fields[field] = value
+            self.info_layout.setContentsMargins(0, 0, 0, 0)  # 여백 제거
+            # 경로 필드 아래에 버튼 추가
+            if field in ['경로', '렌더 경로', '프리뷰 경로']:
+                copy_button = QPushButton("📋")
+                copy_button.setFixedWidth(30)
+                copy_button.setContentsMargins(0, 0, 0, 0)
+                copy_button.clicked.connect(lambda _, f=field: self.copy_to_clipboard(self.info_fields[f].text()))
+                open_button = QPushButton("📁")
+                open_button.setFixedWidth(30)
+                open_button.setContentsMargins(0, 0, 0, 0)
+                open_button.clicked.connect(lambda _, f=field: self.open_folder(self.info_fields[f].text()))
+
+                button_layout = QHBoxLayout()
+                button_layout.setContentsMargins(0, 0, 0, 0)  # 여백 제거
+                button_layout.setSpacing(0)  # 버튼 사이의 간격 설정
+                button_layout.addWidget(copy_button)
+                button_layout.addWidget(open_button)
+                button_layout.setAlignment(Qt.AlignRight)  # 오른쪽 정렬
+
+                button_widget = QWidget()
+                button_widget.setLayout(button_layout)
+
+                self.info_layout.addWidget(button_widget, i * 2 + 1, 1, 1, 1, alignment=Qt.AlignRight)
 
         scroll_area.setWidget(info_widget)
         layout.addWidget(scroll_area)
@@ -153,6 +176,17 @@ class DetailPanel(QWidget):
 
         except Exception as e:
             self.logger.error(f"버전 상세 정보 표시 실패: {str(e)}", exc_info=True)
+
+    def open_folder(self, path):
+        """경로를 탐색기에서 엽니다."""
+        if os.path.isdir(path):
+            subprocess.Popen(f'explorer "{path}"')
+        else:
+            QMessageBox.warning(self, "경고", "유효한 경로가 아닙니다.")
+
+    def copy_to_clipboard(self, text):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
 
     def clear_details(self):
         """상세 정보 초기화"""

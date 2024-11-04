@@ -302,7 +302,7 @@ class ProjectService:
                     continue
                     
                 try:
-                    # 프로젝트 생성 또는 업데이트
+                    # 프로젝트 생성 ��는 업데이트
                     project = self.get_project_by_name(project_dir.name)
                     if not project:
                         self.logger.info(f"""새 프로젝트 생성 중:

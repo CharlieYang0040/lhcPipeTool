@@ -191,7 +191,24 @@ class TableManager:
                 WHERE RDB$RELATION_NAME = ?
                 ORDER BY RDB$FIELD_POSITION
             """, (table_name.upper(),))
-            return cursor.fetchall()
+            
+            # 컬럼명에서 공백 제거하고 리스트로 변환
+            columns = [col[0].strip() for col in cursor.fetchall()]
+            
+            # 로그 출력을 위한 포맷팅
+            max_length = max(len(col) for col in columns)
+            formatted_columns = [f"{col:<{max_length}}" for col in columns]
+            columns_per_line = 3  # 한 줄에 표시할 컬럼 수
+            
+            # 컬럼을 그룹으로 나누어 출력
+            column_groups = [formatted_columns[i:i + columns_per_line] 
+                           for i in range(0, len(formatted_columns), columns_per_line)]
+            
+            for group in column_groups:
+                self.logger.info("    " + " | ".join(group))
+                
+            return columns
+            
         except Exception as e:
             self.logger.error(f"테이블 구조 조회 실패: {str(e)}")
             return None

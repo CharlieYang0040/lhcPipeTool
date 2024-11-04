@@ -156,9 +156,31 @@ class DatabaseService:
             self.logger.error(f"데이터베이스 내용 조회 실패: {str(e)}")
             QMessageBox.critical(self, "오류", f"데이터베이스 내용 조회 실패: {str(e)}")
 
+    def recreate_tables_and_sequences(self, parent_widget):
+        """테이블 재생성 및 시퀀스/트리거 생성"""
+        try:
+            # TableManager를 통해 테이블 재생성
+            from ..database.table_manager import TableManager
+            table_manager = TableManager(self.db_connector)
+            
+            if table_manager.create_all_tables():
+                # 시퀀스 및 트리거 생성
+                if self.create_sequences_and_triggers():
+                    QMessageBox.information(
+                        parent_widget, 
+                        "성공", 
+                        "데이터베이스 테이블을 성공적으로 재생성했습니다."
+                    )
+                    return True
+            raise Exception("테이블 재생성 실패")
+        except Exception as e:
+            self.logger.error(f"테이블 재생성 실패: {str(e)}")
+            raise
+
     def clear_database(self, parent_widget):
         """데이터베이스 초기화 (테이블 재생성)"""
         try:
+            # 첫 번째 확인 메시지
             reply = QMessageBox.question(
                 parent_widget, 
                 "데이터베이스 초기화", 
@@ -169,15 +191,12 @@ class DatabaseService:
             
             if reply == QMessageBox.Yes:
                 cursor = self.db_connector.cursor()
-                
-                # 외래 키 제약 조건 때문에 순서대로 삭제
                 tables = ['VERSIONS', 'SHOTS', 'SEQUENCES', 'PROJECTS']
                 
                 try:
                     # 모든 테이블 삭제
                     for table in tables:
                         try:
-                            # 테이블 존재 여부 확인
                             cursor.execute(f"""
                                 SELECT 1 FROM RDB$RELATIONS 
                                 WHERE RDB$RELATION_NAME = '{table}'
@@ -194,25 +213,19 @@ class DatabaseService:
                     
                     self.db_connector.commit()
                     self.logger.info("모든 테이블 삭제 완료")
-                    
-                    # TableManager를 통해 테이블 재생성
-                    from ..database.table_manager import TableManager
-                    table_manager = TableManager(self.db_connector)
-                    
-                    if table_manager.create_all_tables():
-                        # # 기본 설정 초기화
-                        # table_manager.initialize_settings()
-                        
-                        # 시퀀스 및 트리거 생성
-                        if self.create_sequences_and_triggers():
-                            QMessageBox.information(
-                                parent_widget, 
-                                "성공", 
-                                "데이터베이스 테이블을 성공적으로 재생성했습니다."
-                            )
-                            return True
-                    else:
-                        raise Exception("테이블 재생성 실패")
+
+                    # 두 번째 확인 메시지
+                    reply = QMessageBox.question(
+                        parent_widget,
+                        "테이블 재생성",
+                        "모든 테이블이 삭제되었습니다.\n"
+                        "새로운 테이블을 생성하시겠습니까?",
+                        QMessageBox.Yes | QMessageBox.No
+                    )
+
+                    if reply == QMessageBox.Yes:
+                        return self.recreate_tables_and_sequences(parent_widget)
+                    return True
                         
                 except Exception as e:
                     self.db_connector.rollback()

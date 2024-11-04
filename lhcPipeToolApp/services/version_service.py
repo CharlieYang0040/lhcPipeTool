@@ -2,6 +2,7 @@
 from ..models.version import Version
 from ..models.worker import Worker
 from ..utils.logger import setup_logger
+from ..utils.db_utils import convert_date_format
 
 class VersionService:
     def __init__(self, connector):
@@ -184,7 +185,7 @@ class VersionService:
                     'preview_path': result[6],
                     'render_path': result[7],
                     'comment': result[8],
-                    'created_at': result[9]
+                    'created_at': convert_date_format(result[9])
                 }
             return None
             

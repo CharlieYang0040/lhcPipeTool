@@ -1,5 +1,6 @@
 """프로젝트 모델"""
 from .base_model import BaseModel
+from ..database.table_manager import TableManager
 
 class Project(BaseModel):
     def create(self, name, path=None, description=None):
@@ -13,6 +14,11 @@ class Project(BaseModel):
             INSERT INTO projects (name, path, description) 
             VALUES (?, ?, ?)
         """
+
+        # 테이블 구조 조회
+        table_manager = TableManager(self.connector)
+        table_structure = table_manager.get_table_structure("PROJECTS")
+        self.logger.info(f"테이블 구조: {table_structure}")
         return self._execute(query, (name, path, description))
 
     def get_by_id(self, project_id):

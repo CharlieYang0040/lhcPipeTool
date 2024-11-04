@@ -1,8 +1,9 @@
 """버전 테이블 위젯"""
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QLabel, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QEvent
 from ..services.version_service import VersionService
 from ..utils.logger import setup_logger
+from ..utils.db_utils import convert_date_format
 
 class VersionTableWidget(QWidget):
     version_selected = Signal(int)
@@ -12,6 +13,7 @@ class VersionTableWidget(QWidget):
         self.logger = setup_logger(__name__)
         self.version_service = VersionService(db_connector)
         self.setup_ui()
+        self.table.viewport().installEventFilter(self)
 
     def setup_ui(self):
         """UI 초기화"""
@@ -99,6 +101,14 @@ class VersionTableWidget(QWidget):
         layout.addWidget(self.message_label)
         layout.addWidget(self.table)
 
+    def eventFilter(self, source, event):
+        """이벤트 필터를 사용하여 빈 곳 클릭 시 선택 해제"""
+        if event.type() == QEvent.MouseButtonPress and source is self.table.viewport():
+            if not self.table.itemAt(event.localPos().toPoint()):
+                self.table.clearSelection()
+                self.version_selected.emit(-1)
+        return super().eventFilter(source, event)
+
     def handle_selection_changed(self):
         """테이블 선택 변경 처리"""
         selected_items = self.table.selectedItems()
@@ -141,6 +151,12 @@ class VersionTableWidget(QWidget):
                 ORDER BY v.created_at DESC
             """, (shot_id,))
             versions = cursor.fetchall()
+
+            # 날짜 형식 변환
+            versions = [
+                (version, worker_name, convert_date_format(created_at), status)
+                for version, worker_name, created_at, status in versions
+            ]
 
             # 테이블 표시 및 메시지 숨기기
             self.message_label.hide()
