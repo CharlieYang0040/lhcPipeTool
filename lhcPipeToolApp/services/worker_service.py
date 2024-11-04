@@ -1,10 +1,12 @@
 """작업자 관리 서비스"""
 from ..models.worker import Worker
+from ..utils.logger import setup_logger
 
 class WorkerService:
     def __init__(self, connector):
         self.worker_model = Worker(connector)
-
+        self.logger = setup_logger(__name__)
+        
     def create_worker(self, name, email=None, department=None):
         """작업자 생성"""
         # 동일한 이름의 작업자가 있는지 확인
@@ -72,3 +74,30 @@ class WorkerService:
             raise ValueError("유효하지 않은 이메일 형식입니다.")
         
         return True
+    
+    def get_or_create_system_worker(self):
+        """시스템 워커 ID 조회 또는 생성"""
+        try:
+            cursor = self.worker_model.connector.cursor()
+            cursor.execute("SELECT id FROM workers WHERE name = 'system'")
+            result = cursor.fetchone()
+            
+            if result:
+                worker_id = result[0]
+                self.logger.debug(f"기존 시스템 워커 ID 사용: {worker_id}")
+                return worker_id
+                
+            self.logger.info("시스템 워커 생성 중...")
+            cursor.execute("""
+                INSERT INTO workers (name, department)
+                VALUES ('system', 'system')
+                RETURNING id
+            """)
+            worker_id = cursor.fetchone()[0]
+            self.worker_model.connector.commit()
+            self.logger.info(f"새 시스템 워커 생성됨 - ID: {worker_id}")
+            return worker_id
+            
+        except Exception as e:
+            self.logger.error(f"시스템 워커 조회/생성 중 오류: {str(e)}", exc_info=True)
+            raise

@@ -1,16 +1,18 @@
 """버전 모델"""
 from .base_model import BaseModel
 from ..utils.logger import setup_logger
+from ..database.table_manager import TableManager
 
 class Version(BaseModel):
     def __init__(self, connector):
         super().__init__(connector)
         self.logger = setup_logger(__name__)
 
-    def create(self, shot_id, version_number, worker_id, file_path=None, 
+    def create(self, version_name, shot_id, version_number, worker_id, file_path=None, 
               preview_path=None, render_path=None, comment=None):
         """새 버전 생성"""
         self.logger.info(f"""버전 생성 시도:
+            name: {version_name}
             shot_id: {shot_id}
             version_number: {version_number}
             worker_id: {worker_id}
@@ -19,34 +21,39 @@ class Version(BaseModel):
             render_path: {render_path}
             comment: {comment}
         """)
+
+        # 테이블 구조 조회
+        table_manager = TableManager(self.connector)
+        table_structure = table_manager.get_table_structure("VERSIONS")
+        self.logger.info(f"테이블 구조: {table_structure}")
         
         # 이전 버전들의 is_latest를 False로 설정
         self._update_previous_versions(shot_id)
         
-        # 버전 이름 생성 (v001 형식)
-        version_name = f"v{version_number:03d}"
+        # # 버전 이름 생성 (v001 형식)
+        # version_name = f"v{version_number:03d}"
         
         query = """
-            INSERT INTO versions 
-            (id, shot_id, name, version_number, worker_id, status, file_path, 
-             preview_path, render_path, comment, is_latest) 
+            INSERT INTO VERSIONS 
+            (NAME, SHOT_ID, VERSION_NUMBER, WORKER_ID, STATUS, FILE_PATH, 
+             PREVIEW_PATH, RENDER_PATH, COMMENT, IS_LATEST) 
             VALUES (
-                (SELECT COALESCE(MAX(id), 0) + 1 FROM versions),
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         """
         
         try:
             result = self._execute(query, (
-                shot_id,
                 version_name,
+                shot_id,
                 version_number,
                 worker_id,
                 'pending',
                 file_path,
                 preview_path,
                 render_path,
-                comment
+                comment,
+                True  # is_latest
             ))
             if result:
                 self.logger.info("버전 생성 성공")

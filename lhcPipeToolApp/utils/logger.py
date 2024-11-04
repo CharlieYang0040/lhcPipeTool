@@ -34,9 +34,8 @@ def setup_logger(name):
     
     # 포맷터 설정
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s\n'
-        'File "%(pathname)s", line %(lineno)d\n'
-        '%(message)s\n'
+        '[%(asctime)s] %(levelname)s - %(message)s\n'
+        'Location: %(pathname)s:%(lineno)d'
     )
     
     file_handler.setFormatter(formatter)

@@ -2,10 +2,18 @@
 from .base_model import BaseModel
 
 class Project(BaseModel):
-    def create(self, name):
-        """프로젝트 생성"""
-        query = "INSERT INTO projects (name) VALUES (?)"
-        return self._execute(query, (name,))
+    def create(self, name, path=None, description=None):
+        """프로젝트 생성
+        Args:
+            name (str): 프로젝트 이름
+            path (str, optional): 프로젝트 경로
+            description (str, optional): 프로젝트 설명
+        """
+        query = """
+            INSERT INTO projects (name, path, description) 
+            VALUES (?, ?, ?)
+        """
+        return self._execute(query, (name, path, description))
 
     def get_by_id(self, project_id):
         """ID로 프로젝트 조회"""

@@ -6,7 +6,88 @@ class DatabaseService:
         self.db_connector = db_connector
         self.logger = logger
 
-    def show_database_contents(self):
+    def create_sequences_and_triggers(self):
+        """시퀀스 및 트리거 생성"""
+        try:
+            cursor = self.db_connector.cursor()
+            
+            # 시퀀스 생성
+            sequences = [
+                "CREATE SEQUENCE PROJECTS_ID_GEN",
+                "CREATE SEQUENCE SEQUENCES_ID_GEN",
+                "CREATE SEQUENCE SHOTS_ID_GEN",
+                "CREATE SEQUENCE VERSIONS_ID_GEN"
+            ]
+            
+            for seq in sequences:
+                try:
+                    # 시퀀스가 이미 존재하는지 확인
+                    seq_name = seq.split()[2]
+                    cursor.execute(f"SELECT RDB$GENERATOR_NAME FROM RDB$GENERATORS WHERE RDB$GENERATOR_NAME = '{seq_name}'")
+                    if cursor.fetchone():
+                        self.logger.info(f"시퀀스가 이미 존재함: {seq_name}")
+                    else:
+                        cursor.execute(seq)
+                        self.logger.info(f"시퀀스 생성 완료: {seq}")
+                except Exception as e:
+                    self.logger.warning(f"시퀀스 생성 중 오류 (무시됨): {str(e)}")
+            
+            # 트리거 생성
+            triggers = [
+                """
+                CREATE TRIGGER BI_PROJECTS_ID FOR PROJECTS
+                ACTIVE BEFORE INSERT POSITION 0
+                AS
+                BEGIN
+                  IF (NEW.ID IS NULL) THEN
+                    NEW.ID = NEXT VALUE FOR PROJECTS_ID_GEN;
+                END
+                """,
+                """
+                CREATE TRIGGER BI_SEQUENCES_ID FOR SEQUENCES
+                ACTIVE BEFORE INSERT POSITION 0
+                AS
+                BEGIN
+                  IF (NEW.ID IS NULL) THEN
+                    NEW.ID = NEXT VALUE FOR SEQUENCES_ID_GEN;
+                END
+                """,
+                """
+                CREATE TRIGGER BI_SHOTS_ID FOR SHOTS
+                ACTIVE BEFORE INSERT POSITION 0
+                AS
+                BEGIN
+                  IF (NEW.ID IS NULL) THEN
+                    NEW.ID = NEXT VALUE FOR SHOTS_ID_GEN;
+                END
+                """,
+                """
+                CREATE TRIGGER BI_VERSIONS_ID FOR VERSIONS
+                ACTIVE BEFORE INSERT POSITION 0
+                AS
+                BEGIN
+                  IF (NEW.ID IS NULL) THEN
+                    NEW.ID = NEXT VALUE FOR VERSIONS_ID_GEN;
+                END
+                """
+            ]
+            
+            for trg in triggers:
+                try:
+                    cursor.execute(trg)
+                    self.logger.info(f"트리거 생성 완료: {trg}")
+                except Exception as e:
+                    self.logger.warning(f"트리거 생성 중 오류 (무시됨): {str(e)}")
+            
+            self.db_connector.commit()
+            self.logger.info("시퀀스 및 트리거 생성 완료")
+            return True
+        except Exception as e:
+            self.logger.error(f"시퀀스 및 트리거 생성 실패: {str(e)}")
+            self.db_connector.rollback()
+            return False
+
+    def show_database_contents(self, parent_widget):
         """데이터베이스 내용 출력"""
         try:
             cursor = self.db_connector.cursor()
@@ -44,7 +125,7 @@ class DatabaseService:
                         output.append(str(row))
             
             # 결과 표시
-            msg_box = QMessageBox(self)
+            msg_box = QMessageBox(parent_widget)
             msg_box.setWindowTitle("데이터베이스 내용")
             msg_box.setIcon(QMessageBox.Information)
             
@@ -76,12 +157,13 @@ class DatabaseService:
             QMessageBox.critical(self, "오류", f"데이터베이스 내용 조회 실패: {str(e)}")
 
     def clear_database(self, parent_widget):
-        """데이터베이스 초기화"""
+        """데이터베이스 초기화 (테이블 재생성)"""
         try:
             reply = QMessageBox.question(
                 parent_widget, 
                 "데이터베이스 초기화", 
-                "정말로 모든 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+                "정말로 모든 테이블을 삭제하고 재생성하시겠습니까?\n"
+                "이 작업은 되돌릴 수 없습니다.",
                 QMessageBox.Yes | QMessageBox.No
             )
             
@@ -89,16 +171,60 @@ class DatabaseService:
                 cursor = self.db_connector.cursor()
                 
                 # 외래 키 제약 조건 때문에 순서대로 삭제
-                tables = ['versions', 'shots', 'sequences', 'projects']
+                tables = ['VERSIONS', 'SHOTS', 'SEQUENCES', 'PROJECTS']
                 
-                for table in tables:
-                    cursor.execute(f"DELETE FROM {table}")
-                
-                self.db_connector.commit()
-                QMessageBox.information(parent_widget, "성공", "데이터베이스를 성공적으로 초기화했습니다.")
-                return True
+                try:
+                    # 모든 테이블 삭제
+                    for table in tables:
+                        try:
+                            # 테이블 존재 여부 확인
+                            cursor.execute(f"""
+                                SELECT 1 FROM RDB$RELATIONS 
+                                WHERE RDB$RELATION_NAME = '{table}'
+                                AND RDB$SYSTEM_FLAG = 0
+                            """)
+                            
+                            if cursor.fetchone():
+                                self.logger.info(f"테이블 삭제 시도: {table}")
+                                cursor.execute(f"DROP TABLE {table}")
+                                self.logger.info(f"테이블 삭제 완료: {table}")
+                        except Exception as e:
+                            self.logger.warning(f"테이블 {table} 삭제 중 오류 (무시됨): {str(e)}")
+                            continue
+                    
+                    self.db_connector.commit()
+                    self.logger.info("모든 테이블 삭제 완료")
+                    
+                    # TableManager를 통해 테이블 재생성
+                    from ..database.table_manager import TableManager
+                    table_manager = TableManager(self.db_connector)
+                    
+                    if table_manager.create_all_tables():
+                        # # 기본 설정 초기화
+                        # table_manager.initialize_settings()
+                        
+                        # 시퀀스 및 트리거 생성
+                        if self.create_sequences_and_triggers():
+                            QMessageBox.information(
+                                parent_widget, 
+                                "성공", 
+                                "데이터베이스 테이블을 성공적으로 재생성했습니다."
+                            )
+                            return True
+                    else:
+                        raise Exception("테이블 재생성 실패")
+                        
+                except Exception as e:
+                    self.db_connector.rollback()
+                    raise Exception(f"데이터베이스 초기화 중 오류 발생: {str(e)}")
+
+            return False
 
         except Exception as e:
             self.logger.error(f"데이터베이스 초기화 실패: {str(e)}")
-            QMessageBox.critical(parent_widget, "오류", f"데이터베이스 초기화 실패: {str(e)}")
+            QMessageBox.critical(
+                parent_widget, 
+                "오류", 
+                f"데이터베이스 초기화 실패: {str(e)}"
+            )
             return False

@@ -2,74 +2,74 @@
 
 TABLES = {
     'projects': """
-        CREATE TABLE projects (
-            id INTEGER NOT NULL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            path VARCHAR(500),
-            description BLOB SUB_TYPE TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE PROJECTS (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            NAME VARCHAR(100) NOT NULL,
+            PATH VARCHAR(500),
+            DESCRIPTION BLOB SUB_TYPE TEXT,
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
     
     'sequences': """
-        CREATE TABLE sequences (
-            id INTEGER NOT NULL PRIMARY KEY,
-            project_id INTEGER NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            description BLOB SUB_TYPE TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        CREATE TABLE SEQUENCES (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            NAME VARCHAR(100) NOT NULL,
+            PROJECT_ID INTEGER NOT NULL,
+            DESCRIPTION BLOB SUB_TYPE TEXT,
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (PROJECT_ID) REFERENCES PROJECTS(ID) ON DELETE CASCADE
         )
     """,
     
     'shots': """
-        CREATE TABLE shots (
-            id INTEGER NOT NULL PRIMARY KEY,
-            sequence_id INTEGER NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            status VARCHAR(20) DEFAULT 'pending',
-            description BLOB SUB_TYPE TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (sequence_id) REFERENCES sequences(id) ON DELETE CASCADE
+        CREATE TABLE SHOTS (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            NAME VARCHAR(100) NOT NULL,
+            SEQUENCE_ID INTEGER NOT NULL,
+            STATUS VARCHAR(20) DEFAULT 'pending',
+            DESCRIPTION BLOB SUB_TYPE TEXT,
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (SEQUENCE_ID) REFERENCES SEQUENCES(ID) ON DELETE CASCADE
         )
     """,
     
     'versions': """
-        CREATE TABLE versions (
-            id INTEGER NOT NULL PRIMARY KEY,
-            shot_id INTEGER NOT NULL,
-            name VARCHAR(10),
-            version_number INTEGER NOT NULL,
-            worker_id INTEGER,
-            status VARCHAR(50) DEFAULT 'pending',
-            file_path VARCHAR(500),
-            preview_path VARCHAR(500),
-            render_path VARCHAR(500),
-            comment VARCHAR(500),
-            is_latest BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            path VARCHAR(500),
-            FOREIGN KEY (shot_id) REFERENCES shots(id),
-            FOREIGN KEY (worker_id) REFERENCES workers(id)
+        CREATE TABLE VERSIONS (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            NAME VARCHAR(100) NOT NULL,
+            SHOT_ID INTEGER NOT NULL,
+            VERSION_NUMBER INTEGER NOT NULL,
+            WORKER_ID INTEGER,
+            STATUS VARCHAR(50) DEFAULT 'pending',
+            FILE_PATH VARCHAR(500),
+            PREVIEW_PATH VARCHAR(500),
+            RENDER_PATH VARCHAR(500),
+            COMMENT VARCHAR(500),
+            IS_LATEST BOOLEAN DEFAULT TRUE,
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PATH VARCHAR(500),
+            FOREIGN KEY (SHOT_ID) REFERENCES SHOTS(ID) ON DELETE CASCADE,
+            FOREIGN KEY (WORKER_ID) REFERENCES WORKERS(ID)
         )
     """,
 
     'workers': """
-        CREATE TABLE workers (
-            id INTEGER NOT NULL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            department VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE WORKERS (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            NAME VARCHAR(100) NOT NULL,
+            DEPARTMENT VARCHAR(50),
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """,
     
     'settings': """
-        CREATE TABLE settings (
-            setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
-            setting_value VARCHAR(500) NOT NULL,
-            description BLOB SUB_TYPE 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE SETTINGS (
+            SETTING_KEY VARCHAR(100) NOT NULL PRIMARY KEY,
+            SETTING_VALUE VARCHAR(500) NOT NULL,
+            DESCRIPTION BLOB SUB_TYPE 1,
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """
 }

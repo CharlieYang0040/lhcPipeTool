@@ -3,7 +3,13 @@ from .base_model import BaseModel
 
 class Shot(BaseModel):
     def create(self, name, sequence_id, description=None, status="pending"):
-        """샷 생성"""
+        """샷 생성
+        Args:
+            name (str): 샷 이름
+            sequence_id (int): 시퀀스 ID
+            description (str, optional): 샷 설명
+            status (str, optional): 샷 상태 (기본값: "pending")
+        """
         query = """
             INSERT INTO shots (name, sequence_id, description, status) 
             VALUES (?, ?, ?, ?)

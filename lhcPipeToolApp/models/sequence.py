@@ -2,10 +2,18 @@
 from .base_model import BaseModel
 
 class Sequence(BaseModel):
-    def create(self, name, project_id):
-        """시퀀스 생성"""
-        query = "INSERT INTO sequences (name, project_id) VALUES (?, ?)"
-        return self._execute(query, (name, project_id))
+    def create(self, name, project_id, description=None):
+        """시퀀스 생성
+        Args:
+            name (str): 시퀀스 이름
+            project_id (int): 프로젝트 ID
+            description (str, optional): 시퀀스 설명
+        """
+        query = """
+            INSERT INTO sequences (name, project_id, description) 
+            VALUES (?, ?, ?)
+        """
+        return self._execute(query, (name, project_id, description))
 
     def get_by_project(self, project_id):
         """프로젝트별 시퀀스 조회"""

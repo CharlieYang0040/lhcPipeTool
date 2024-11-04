@@ -180,3 +180,18 @@ class TableManager:
         except Exception as e:
             self.logger.error(f"설명 컬럼 추가 실패: {str(e)}")
             return False
+        
+    def get_table_structure(self, table_name):
+        """테이블 구조 조회"""
+        try:
+            cursor = self.connector.cursor()
+            cursor.execute("""
+                SELECT RDB$FIELD_NAME 
+                FROM RDB$RELATION_FIELDS 
+                WHERE RDB$RELATION_NAME = ?
+                ORDER BY RDB$FIELD_POSITION
+            """, (table_name.upper(),))
+            return cursor.fetchall()
+        except Exception as e:
+            self.logger.error(f"테이블 구조 조회 실패: {str(e)}")
+            return None

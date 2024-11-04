@@ -14,7 +14,7 @@ class CustomTreeItemWidget(QWidget):
         layout.setSpacing(10)
         
         # 이름 라벨
-        self.name_label = QLabel(name)
+        self.name_label = QLabel(str(name))
         self.name_label.setStyleSheet("""
             font-size: 16px;
             padding-left: 5px;
