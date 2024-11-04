@@ -180,6 +180,7 @@ class ProjectTreeWidget(QTreeWidget):
                 menu.addAction("샷 추가", lambda: self.add_shot(item, item_id))
                 menu.addAction("시퀀스 삭제", lambda: self.delete_sequence(item, item_id))
             elif item_type == "shot":
+                menu.addAction("버전 추가", lambda: self.add_version(item, item_id))
                 menu.addAction("샷 삭제", lambda: self.delete_shot(item, item_id))
                 
             menu.exec_(self.viewport().mapToGlobal(position))
@@ -216,6 +217,10 @@ class ProjectTreeWidget(QTreeWidget):
                     parent_item.setExpanded(True)
             except Exception as e:
                 QMessageBox.critical(self, "오류", f"샷 추가 실패: {str(e)}")
+
+    def add_version(self, parent_item, shot_id):
+        """버전 추가"""
+        pass
 
     def delete_project(self, item, project_id):
         """프로젝트 삭제"""

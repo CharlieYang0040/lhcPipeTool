@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit,
                               QTextEdit, QComboBox, QPushButton, 
                               QLabel, QMessageBox, QFormLayout)
 
-class ShotDialog(QDialog):
+class NewShotDialog(QDialog):
     def __init__(self, project_service, sequence_id, shot=None, parent=None):
         super().__init__(parent)
         self.project_service = project_service

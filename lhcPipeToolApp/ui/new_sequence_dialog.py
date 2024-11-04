@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
                               QPushButton, QLabel, QMessageBox)
 
-class SequenceDialog(QDialog):
+class NewSequenceDialog(QDialog):
     def __init__(self, project_service, project_id, sequence=None, parent=None):
         super().__init__(parent)
         self.project_service = project_service

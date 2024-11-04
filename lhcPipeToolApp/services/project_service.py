@@ -2,6 +2,7 @@
 from ..models.project import Project
 from ..models.sequence import Sequence
 from ..models.shot import Shot
+from ..models.version import Version
 from ..utils.logger import setup_logger
 from pathlib import Path
 from ..database.table_manager import TableManager
@@ -12,6 +13,7 @@ class ProjectService:
         self.project_model = Project(connector)
         self.sequence_model = Sequence(connector)
         self.shot_model = Shot(connector)
+        self.version_model = Version(connector)
         self.logger = setup_logger(__name__)
         self.table_manager = TableManager(connector)
 
