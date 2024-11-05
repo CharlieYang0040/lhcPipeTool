@@ -366,6 +366,7 @@ class NewVersionDialog(QDialog):
         # 작업자 히스토리 저장
         self.save_worker_history(worker_name)
         
+        # TODO item_type에 따라 버전 생성
         success = self.version_service.create_version(
             shot_id=self.shot_id,
             worker_name=worker_name,

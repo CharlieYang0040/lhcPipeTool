@@ -16,6 +16,8 @@ class DatabaseService:
                 "CREATE SEQUENCE PROJECTS_ID_GEN",
                 "CREATE SEQUENCE SEQUENCES_ID_GEN",
                 "CREATE SEQUENCE SHOTS_ID_GEN",
+                "CREATE SEQUENCE PROJECT_VERSIONS_ID_GEN",
+                "CREATE SEQUENCE SEQUENCE_VERSIONS_ID_GEN",
                 "CREATE SEQUENCE VERSIONS_ID_GEN"
             ]
             
@@ -59,6 +61,24 @@ class DatabaseService:
                 BEGIN
                   IF (NEW.ID IS NULL) THEN
                     NEW.ID = NEXT VALUE FOR SHOTS_ID_GEN;
+                END
+                """,
+                """
+                CREATE TRIGGER BI_PROJECT_VERSIONS_ID FOR PROJECT_VERSIONS
+                ACTIVE BEFORE INSERT POSITION 0
+                AS
+                BEGIN
+                  IF (NEW.ID IS NULL) THEN
+                    NEW.ID = NEXT VALUE FOR PROJECT_VERSIONS_ID_GEN;
+                END
+                """,
+                """
+                CREATE TRIGGER BI_SEQUENCE_VERSIONS_ID FOR SEQUENCE_VERSIONS
+                ACTIVE BEFORE INSERT POSITION 0
+                AS
+                BEGIN
+                  IF (NEW.ID IS NULL) THEN
+                    NEW.ID = NEXT VALUE FOR SEQUENCE_VERSIONS_ID_GEN;
                 END
                 """,
                 """
@@ -191,7 +211,7 @@ class DatabaseService:
             
             if reply == QMessageBox.Yes:
                 cursor = self.db_connector.cursor()
-                tables = ['VERSIONS', 'SHOTS', 'SEQUENCES', 'PROJECTS']
+                tables = ['VERSIONS', 'SEQUENCE_VERSIONS', 'PROJECT_VERSIONS', 'SHOTS', 'SEQUENCES', 'PROJECTS']
                 
                 try:
                     # 모든 테이블 삭제

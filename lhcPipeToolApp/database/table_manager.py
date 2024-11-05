@@ -44,8 +44,8 @@ class TableManager:
             'sequences',
             'shots',
             'workers',
-            'projects_versions',
-            'sequences_versions',
+            'project_versions',
+            'sequence_versions',
             'versions'
         ]
         
@@ -214,3 +214,34 @@ class TableManager:
         except Exception as e:
             self.logger.error(f"테이블 구조 조회 실패: {str(e)}")
             return None
+        
+    def check_all_table_exists(self):
+        """모든 테이블 존재 여부 확인"""
+        self.logger.info("모든 테이블 존재 여부 확인 시작")
+        TABLES = [
+            'projects',
+            'sequences',
+            'shots',
+            'workers',
+            'projects_versions',
+            'sequences_versions',
+            'versions'
+        ]
+        
+        for table_name in TABLES:
+            cursor = self.connector.cursor()
+            cursor.execute(f"""
+                SELECT 1 FROM RDB$RELATIONS 
+                WHERE RDB$RELATION_NAME = '{table_name.upper()}'
+            """)
+            result = cursor.fetchone()
+            
+            if result:
+                self.logger.info(f"테이블 존재함: {table_name}")
+            else:
+                self.logger.error(f"테이블 존재하지 않음: {table_name}")
+                return False
+        self.logger.info("모든 테이블 존재 여부 확인 완료")
+        return True
+
+        

@@ -3,6 +3,8 @@ from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog,
 from PySide6.QtCore import Signal, Qt, QSize
 from ..services.project_service import ProjectService
 from ..services.version_service import VersionService
+from ..services.project_version_service import ProjectVersionService
+from ..services.sequence_version_service import SequenceVersionService
 from ..utils.logger import setup_logger
 from .project_tree_item import CustomTreeItemWidget
 from .new_version_dialog import NewVersionDialog
@@ -17,6 +19,8 @@ class ProjectTreeWidget(QTreeWidget):
         self.logger = setup_logger(__name__)
         self.project_service = ProjectService(db_connector)
         self.version_service = VersionService(db_connector)
+        self.project_version_service = ProjectVersionService(db_connector)
+        self.sequence_version_service = SequenceVersionService(db_connector)
         self.setup_ui()
         self.load_projects()
         # 빈 공간 클릭 이벤트 연결
@@ -192,12 +196,14 @@ class ProjectTreeWidget(QTreeWidget):
             
             if item_type == "project":
                 menu.addAction("시퀀스 추가", lambda: self.add_sequence(item, item_id))
+                menu.addAction("프로젝트 버전 추가", lambda: self.add_version(item, "project", item_id))
                 menu.addAction("프로젝트 삭제", lambda: self.delete_project(item, item_id))
             elif item_type == "sequence":
                 menu.addAction("샷 추가", lambda: self.add_shot(item, item_id))
+                menu.addAction("시퀀스 버전 추가", lambda: self.add_version(item, "sequence", item_id))
                 menu.addAction("시퀀스 삭제", lambda: self.delete_sequence(item, item_id))
             elif item_type == "shot":
-                menu.addAction("버전 추가", lambda: self.add_version(item, item_id))
+                menu.addAction("버전 추가", lambda: self.add_version(item, "shot", item_id))
                 menu.addAction("샷 삭제", lambda: self.delete_shot(item, item_id))
                 
             menu.exec_(self.viewport().mapToGlobal(position))
@@ -231,18 +237,24 @@ class ProjectTreeWidget(QTreeWidget):
                 self.logger.error(f"샷 추가 실패: {str(e)}", exc_info=True)
                 QMessageBox.critical(self, "오류", f"샷 추가 실패: {str(e)}")
 
-    def add_version(self, parent_item, shot_id):
+    def add_version(self, parent_item, item_type, item_id):
         """버전 추가"""
         try:
-            self.logger.debug(f"버전 추가 시작 - shot_id: {shot_id}")
+            self.logger.debug(f"버전 추가 시작 - item_type: {item_type}, item_id: {item_id}")
             
             # 새 버전 다이얼로그 생성 및 실행
-            dialog = NewVersionDialog(self.version_service, shot_id, self)
+            if item_type == "project":
+                dialog = NewVersionDialog(self.project_version_service, item_id, self)
+            elif item_type == "sequence":
+                dialog = NewVersionDialog(self.sequence_version_service, item_id, self)
+            else:  # shot
+                dialog = NewVersionDialog(self.version_service, item_id, self)
             
             if dialog.exec_():
                 self.logger.info("새 버전 생성 성공")
                 # 버전 테이블 새로고침을 위해 shot_selected 시그널 재발생
-                self.shot_selected.emit(shot_id)
+                if item_type == "shot":
+                    self.shot_selected.emit(item_id)
                 return True
                 
             self.logger.debug("버전 생성 취소됨")

@@ -152,7 +152,6 @@ class VersionTableWidget(QWidget):
                 version_id = self.table.item(row, 0).data(Qt.UserRole)
                 self.edit_version(version_id)
 
-
     def edit_version(self, version_id):
         """버전 수정"""
         version_details = self.version_service.get_version_details(version_id)
