@@ -3,9 +3,10 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit,
                               QPushButton, QLabel, QMessageBox)
 
 class NewProjectDialog(QDialog):
-    def __init__(self, project_service, parent=None):
+    def __init__(self, project_service, project_tree, parent=None):
         super().__init__(parent)
         self.project_service = project_service
+        self.project_tree = project_tree
         self.setup_ui()
         
     def setup_ui(self):
@@ -33,6 +34,7 @@ class NewProjectDialog(QDialog):
             return
             
         if self.project_service.create_project(name):
+            self.project_tree.refresh()
             self.accept()
         else:
             QMessageBox.critical(self, "Error", "Failed to create project!")

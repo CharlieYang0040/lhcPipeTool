@@ -12,45 +12,112 @@ class VersionService:
         self.worker_model = Worker(connector)
 
     def create_version(self, shot_id, version_number=None, worker_name=None, 
-                      file_path=None, preview_path=None, comment=None):
-        """새 버전 생성"""
+                      file_path=None, preview_path=None, comment=None, status=None):
+        """새 버전 생성
+        Args:
+            shot_id (int): 샷 ID
+            version_number (int, optional): 버전 번호. 미지정시 자동 생성
+            worker_name (str, optional): 작업자 이름. 미지정시 'system'
+            file_path (str, optional): 파일 경로
+            preview_path (str, optional): 프리뷰 이미지 경로
+            comment (str, optional): 버전 코멘트
+            status (str, optional): 버전 상태
+        """
         try:
-            # worker_name이 없으면 'system'으로 설정
-            if not worker_name:
-                worker_name = 'system'
-                
-            # 작업자 확인 또는 생성
-            worker = self.worker_model.get_by_name(worker_name)
-            if not worker:
-                if not self.worker_model.create(worker_name):
-                    return False
-                worker = self.worker_model.get_by_name(worker_name)
+            self.logger.info(f"버전 생성 시작 - shot_id: {shot_id}")
+            self.logger.debug(f"입력 파라미터 - version_number: {version_number}, worker_name: {worker_name}")
+            self.logger.debug(f"파일 경로 - file_path: {file_path}, preview_path: {preview_path}")
 
-            # 버전 번호가 지정되지 않은 경우 자동 생성
+            # 작업자 처리
+            worker_name = worker_name or 'system'
+            self.logger.debug(f"작업자 이름: {worker_name}")
+            
+            worker = self._get_or_create_worker(worker_name)
+            if not worker:
+                return False
+
+            # 버전 번호 처리
             if version_number is None:
-                versions = self.version_model.get_all_versions(shot_id)
-                if not versions:
-                    version_number = 1
-                else:
-                    # 'v001' 형식에서 숫자만 추출
-                    latest_version = versions[0][2]  # version_number 컬럼
-                    if isinstance(latest_version, str) and latest_version.startswith('v'):
-                        version_number = int(latest_version[1:]) + 1
-                    else:
-                        version_number = int(latest_version) + 1
+                version_number = self._get_next_version_number(shot_id)
+                self.logger.debug(f"자동 생성된 버전 번호: {version_number}")
+
+            # 버전 이름 생성 (v001 형식)
+            version_name = f"v{version_number:03d}"
+            self.logger.debug(f"생성된 버전 이름: {version_name}")
 
             # 새 버전 생성
-            return self.version_model.create(
+            self.logger.info(f"새 버전 생성 시도 - version_name: {version_name}, version_number: {version_number}")
+            result = self.version_model.create(
                 shot_id=shot_id,
-                version_number=version_number,  # 이미 정수형으로 처리됨
+                version_name=version_name,
+                version_number=version_number,
                 worker_id=worker[0],
                 file_path=file_path,
                 preview_path=preview_path,
-                comment=comment
+                comment=comment,
+                status=status
             )
+            
+            if result:
+                self.logger.info("버전 생성 성공")
+            else:
+                self.logger.error("버전 생성 실패")
+            
+            return result
+            
         except Exception as e:
-            self.logger.error(f"버전 생성 실패: {str(e)}")
+            self.logger.error(f"버전 생성 중 예외 발생: {str(e)}", exc_info=True)
             return False
+
+    def _get_or_create_worker(self, worker_name):
+        """작업자 조회 또는 생성"""
+        worker = self.worker_model.get_by_name(worker_name)
+        if not worker:
+            self.logger.info(f"작업자 '{worker_name}'가 존재하지 않아 새로 생성")
+            if not self.worker_model.create(worker_name):
+                self.logger.error(f"작업자 '{worker_name}' 생성 실패")
+                return None
+            worker = self.worker_model.get_by_name(worker_name)
+            self.logger.debug(f"생성된 작업자 정보: {worker}")
+        return worker
+
+    def _get_next_version_number(self, shot_id):
+        """다음 버전 번호 조회"""
+        try:
+            self.logger.debug(f"다음 버전 번호 조회 시작 - shot_id: {shot_id}")
+            versions = self.version_model.get_all_versions(shot_id)
+            self.logger.debug(f"기존 버전 목록: {versions}")
+            
+            if not versions:
+                self.logger.debug("기존 버전 없음, 버전 1 반환")
+                return 1
+                
+            # 모든 버전 번호 추출
+            version_numbers = []
+            for version in versions:
+                try:
+                    # version[3]이 version_number 컬럼
+                    version_number = version[3]  # 인덱스 수정
+                    if isinstance(version_number, int):
+                        version_numbers.append(version_number)
+                    else:
+                        self.logger.warning(f"잘못된 버전 번호 형식: {version_number}")
+                except (ValueError, IndexError) as e:
+                    self.logger.error(f"버전 번호 파싱 실패: {e}")
+                    continue
+            
+            if not version_numbers:
+                self.logger.debug("파싱 가능한 버전 번호 없음, 버전 1 반환")
+                return 1
+                
+            # 가장 큰 버전 번호 + 1 반환
+            next_version = max(version_numbers) + 1
+            self.logger.debug(f"다음 버전 번호: {next_version}")
+            return next_version
+            
+        except Exception as e:
+            self.logger.error(f"다음 버전 번호 조회 실패: {str(e)}")
+            return 1
 
     def update_version(self, version_id, status=None, comment=None):
         """버전 정보 업데이트"""
@@ -62,24 +129,36 @@ class VersionService:
 
     def get_all_versions(self, shot_id):
         """샷의 모든 버전 조회"""
-        self.logger.info(f"버전 목록 조회 시도: shot_id={shot_id}")
         try:
+            self.logger.debug(f"샷 ID {shot_id}의 모든 버전 조회 시작")
             cursor = self.connector.cursor()
+            
             query = """
-                SELECT versions.*, workers.name as worker_name
-                FROM versions
-                LEFT JOIN workers ON versions.worker_id = workers.id
-                WHERE versions.shot_id = ?
-                ORDER BY versions.version_number DESC
+                SELECT 
+                    v.id,
+                    v.name,
+                    v.version_number,
+                    w.name as worker_name,
+                    v.created_at,
+                    v.status
+                FROM versions v
+                LEFT JOIN workers w ON v.worker_id = w.id
+                WHERE v.shot_id = ?
+                ORDER BY v.version_number DESC
             """
-            self.logger.info(f"실행할 SQL: {query}")
-            self.logger.info(f"파라미터: shot_id={shot_id}")
+            
+            self.logger.debug(f"실행 쿼리: {query}")
             cursor.execute(query, (shot_id,))
+            
             versions = cursor.fetchall()
-            self.logger.info(f"조회된 버전 수: {len(versions)}")
+            self.logger.debug(f"조회된 버전 수: {len(versions)}")
+            if versions:
+                self.logger.debug(f"첫 번째 버전 데이터: {versions[0]}")
+                
             return versions
+            
         except Exception as e:
-            self.logger.error(f"버전 목록 조회 실패: {str(e)}", exc_info=True)
+            self.logger.error(f"버전 조회 중 오류 발생: {str(e)}", exc_info=True)
             return []
 
     def get_shot_info(self, shot_id):
@@ -109,7 +188,7 @@ class VersionService:
             return None
 
     def get_render_root(self):
-        """렌더 파일 저장 루트 경로 ��환"""
+        """렌더 파일 저장 루트 경로 환"""
         try:
             cursor = self.connector.cursor()
             cursor.execute("SELECT setting_value FROM settings WHERE setting_key = 'render_root'")
@@ -120,23 +199,6 @@ class VersionService:
         except Exception as e:
             self.logger.error(f"렌더 경로 조회 실패: {str(e)}")
             return "D:/WORKDATA/lhcPipeTool/TestSequence"  # 기본값
-
-    def get_next_version_number(self, shot_id):
-        """다음 버전 번호 반환"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("""
-                SELECT MAX(version_number) 
-                FROM versions 
-                WHERE shot_id = ?
-            """, (shot_id,))
-            result = cursor.fetchone()
-            if result[0] is None:
-                return 1
-            return result[0] + 1
-        except Exception as e:
-            self.logger.error(f"다음 버전 번호 조회 실패: {str(e)}")
-            raise
 
     def get_version(self, shot_id, version_number):
         """특정 샷의 특정 버전 조회"""
@@ -154,7 +216,9 @@ class VersionService:
     def get_version_details(self, version_id):
         """버전 상세 정보 조회"""
         try:
+            self.logger.debug(f"버전 상세 정보 조회 시작 - version_id: {version_id}")
             cursor = self.connector.cursor()
+            
             query = """
                 SELECT 
                     v.id,
@@ -171,11 +235,15 @@ class VersionService:
                 LEFT JOIN workers w ON v.worker_id = w.id
                 WHERE v.id = ?
             """
+            
+            self.logger.debug(f"실행 쿼리: {query}")
             cursor.execute(query, (version_id,))
+            
             result = cursor.fetchone()
+            self.logger.debug(f"조회 결과: {result}")
             
             if result:
-                return {
+                version_details = {
                     'id': result[0],
                     'name': result[1],
                     'version_number': result[2],
@@ -187,8 +255,42 @@ class VersionService:
                     'comment': result[8],
                     'created_at': convert_date_format(result[9])
                 }
+                self.logger.debug(f"변환된 버전 정보: {version_details}")
+                return version_details
+                
+            self.logger.warning(f"버전 정보를 찾을 수 없음 - version_id: {version_id}")
             return None
             
         except Exception as e:
             self.logger.error(f"버전 상세 정보 조회 실패: {str(e)}", exc_info=True)
             return None
+
+    def delete_version(self, version_id):
+        """버전 삭제"""
+        try:
+            self.logger.info(f"버전 삭제 시도 - version_id: {version_id}")
+            
+            # 버전 정보 조회
+            version = self.get_version_details(version_id)
+            if not version:
+                self.logger.error("삭제할 버전을 찾을 수 없음")
+                return False
+                
+            # 버전 삭제
+            result = self.version_model.delete(version_id)
+            
+            if result:
+                self.logger.info("버전 삭제 성공")
+            else:
+                self.logger.error("버전 삭제 실패")
+                
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"버전 삭제 중 예외 발생: {str(e)}", exc_info=True)
+            return False
+        
+    def get_latest_version(self, shot_id):
+        """샷의 최신 버전 조회"""
+        return self.version_model.get_latest_version(shot_id)
+    

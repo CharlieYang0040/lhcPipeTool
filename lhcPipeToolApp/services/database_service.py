@@ -94,7 +94,7 @@ class DatabaseService:
             output = []
             
             # 원하는 테이블 순서 정의
-            ordered_tables = ['PROJECTS', 'SEQUENCES', 'SHOTS', 'VERSIONS', 'WORKERS', 'SETTINGS']
+            ordered_tables = ['PROJECTS', 'SEQUENCES', 'SHOTS', 'PROJECT_VERSIONS', 'SEQUENCE_VERSIONS', 'VERSIONS', 'WORKERS', 'SETTINGS']
             
             # 실제 존재하는 테이블 확인
             cursor.execute("""

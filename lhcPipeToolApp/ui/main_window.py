@@ -1,10 +1,9 @@
 """메인 윈도우"""
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
-    QMenuBar, QMenu, QDialog, QMessageBox, QToolBar, QStyle, QTextEdit
+    QDialog, QMessageBox, QToolBar, QStyle
 )
 from PySide6.QtCore import Qt
-from pathlib import Path
 from .project_tree import ProjectTreeWidget
 from .version_table import VersionTableWidget
 from .detail_panel import DetailPanel
@@ -29,10 +28,6 @@ class MainWindow(QMainWindow):
         
         self.table_manager = TableManager(db_connector)
         
-        # # 테이블 생성 및 컬럼 추가
-        # self.table_manager.create_all_tables()
-        # self.table_manager.add_path_columns()
-        
         # 서비스 초기화
         self.project_service = ProjectService(db_connector)
         self.version_service = VersionService(db_connector)
@@ -49,7 +44,7 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """UI 초기화"""
         self.setWindowTitle("Pipeline Tool")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1600, 800)
         
         # 메인 위젯 및 레이아웃
         main_widget = QWidget()
@@ -59,6 +54,29 @@ class MainWindow(QMainWindow):
         # 툴바 추가
         toolbar = QToolBar()
         self.addToolBar(toolbar)
+        
+        # 툴바 스타일 수정
+        toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #15151e;
+                border: none;
+                spacing: 5px;
+                padding: 5px;
+            }
+            QToolButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+                padding: 5px;
+                color: #e0e0e0;
+            }
+            QToolButton:hover {
+                background-color: #1f1f2c;
+            }
+            QToolButton:pressed {
+                background-color: #2d2d3d;
+            }
+        """)
         
         # 새로고침 버튼
         refresh_action = toolbar.addAction("새로고침")
@@ -91,9 +109,37 @@ class MainWindow(QMainWindow):
         self.detail_panel = DetailPanel(self.db_connector)
         splitter.addWidget(self.detail_panel)
         
+        # 메인 윈도우 스타일 수정
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #15151e;
+            }
+            QSplitter {
+                background-color: #15151e;
+            }
+            QSplitter::handle {
+                background-color: #2d2d3d;
+            }
+            QMenuBar {
+                background-color: #15151e;
+                color: #e0e0e0;
+            }
+            QMenuBar::item:selected {
+                background-color: #2d2d3d;
+            }
+            QMenu {
+                background-color: #15151e;
+                color: #e0e0e0;
+                border: 1px solid #2d2d3d;
+            }
+            QMenu::item:selected {
+                background-color: #2d2d3d;
+            }
+        """)
+        
         # 시그널 연결
         self.project_tree.shot_selected.connect(self.handle_shot_selection)
-        self.version_table.version_selected.connect(self.detail_panel.show_version_details)
+        self.version_table.version_selected.connect(self.handle_version_selection)
 
     def setup_menu(self):
         """메뉴바 설정"""
@@ -208,3 +254,7 @@ class MainWindow(QMainWindow):
             self.version_table.clear_versions()
         else:
             self.version_table.load_versions(shot_id)
+
+    def handle_version_selection(self, version_id):
+        """버전 선택 처리"""
+        self.detail_panel.show_version_details(version_id)

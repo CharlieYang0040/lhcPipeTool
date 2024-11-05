@@ -4,9 +4,9 @@ from ..models.sequence import Sequence
 from ..models.shot import Shot
 from ..models.version import Version
 from ..utils.logger import setup_logger
-from pathlib import Path
 from ..database.table_manager import TableManager
 from .worker_service import WorkerService
+from ..utils.event_system import EventSystem
 
 class ProjectService:
     def __init__(self, connector):
@@ -18,7 +18,7 @@ class ProjectService:
         self.logger = setup_logger(__name__)
         self.table_manager = TableManager(connector)
         self.worker_service = WorkerService(connector)
-
+        
     def get_project_structure(self, project_id):
         """프로젝트의 전체 구조 조회"""
         try:
@@ -95,6 +95,7 @@ class ProjectService:
             cursor.execute(sql, (name, str(path) if path else None, description))
             project_id = cursor.fetchone()[0]
             self.connector.commit()
+            EventSystem.notify('project_updated')  # 이벤트 발생
             
             self.logger.info(f"프로젝트 생성 성공 - ID: {project_id}")
             return project_id
@@ -125,6 +126,7 @@ class ProjectService:
             cursor.execute(sql, (project_id, str(name), description))
             sequence_id = cursor.fetchone()[0]
             self.connector.commit()
+            EventSystem.notify('project_updated')  # 이벤트 발생
             
             self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
             return sequence_id
@@ -156,6 +158,7 @@ class ProjectService:
             cursor.execute(sql, (sequence_id, str(name), status, description))
             shot_id = cursor.fetchone()[0]
             self.connector.commit()
+            EventSystem.notify('project_updated')  # 이벤트 발생
             
             self.logger.info(f"샷 생성 성공 - ID: {shot_id}")
             return shot_id
@@ -302,7 +305,7 @@ class ProjectService:
                     continue
                     
                 try:
-                    # 프로젝트 생성 ��는 업데이트
+                    # 프로젝트 생성 는 업데이트
                     project = self.get_project_by_name(project_dir.name)
                     if not project:
                         self.logger.info(f"""새 프로젝트 생성 중:

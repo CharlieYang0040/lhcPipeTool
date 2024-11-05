@@ -9,7 +9,7 @@ class Version(BaseModel):
         self.logger = setup_logger(__name__)
 
     def create(self, version_name, shot_id, version_number, worker_id, file_path=None, 
-              preview_path=None, render_path=None, comment=None):
+              preview_path=None, render_path=None, comment=None, status='pending'):
         """새 버전 생성"""
         self.logger.info(f"""버전 생성 시도:
             name: {version_name}
@@ -20,6 +20,7 @@ class Version(BaseModel):
             preview_path: {preview_path}
             render_path: {render_path}
             comment: {comment}
+            status: {status}
         """)
 
         # 테이블 구조 조회
@@ -48,7 +49,7 @@ class Version(BaseModel):
                 shot_id,
                 version_number,
                 worker_id,
-                'pending',
+                status,
                 file_path,
                 preview_path,
                 render_path,
@@ -107,3 +108,12 @@ class Version(BaseModel):
         """ID로 버전 조회"""
         query = "SELECT * FROM versions WHERE id = ?"
         return self._fetch_one(query, (version_id,))
+
+    def delete(self, version_id):
+        """버전 삭제"""
+        try:
+            query = "DELETE FROM versions WHERE id = ?"
+            return self._execute(query, (version_id,))
+        except Exception as e:
+            self.logger.error(f"버전 삭제 중 오류 발생: {str(e)}", exc_info=True)
+            return False

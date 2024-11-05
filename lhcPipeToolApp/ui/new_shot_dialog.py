@@ -1,16 +1,17 @@
 """샷 생성/편집 다이얼로그"""
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
                               QTextEdit, QComboBox, QPushButton, 
-                              QLabel, QMessageBox, QFormLayout)
+                              QMessageBox, QFormLayout)
 
 class NewShotDialog(QDialog):
-    def __init__(self, project_service, sequence_id, shot=None, parent=None):
+    def __init__(self, project_service, sequence_id, project_tree, shot=None, parent=None):
         super().__init__(parent)
         self.project_service = project_service
         self.sequence_id = sequence_id
-        self.shot = shot  # 편집 모드일 경우 기존 샷 정보
+        self.shot = shot
+        self.project_tree = project_tree
         self.setup_ui()
-        
+         
     def setup_ui(self):
         self.setWindowTitle("New Shot" if not self.shot else "Edit Shot")
         layout = QFormLayout(self)
@@ -58,17 +59,16 @@ class NewShotDialog(QDialog):
         description = self.description_input.toPlainText()
         
         if self.shot:
-            # 편집 모드
             success = self.project_service.update_shot(
                 self.shot[0], name, status, description
             )
         else:
-            # 새로 생성
             success = self.project_service.create_shot(
                 self.sequence_id, name, status, description
             )
             
         if success:
+            self.project_tree.refresh()
             self.accept()
         else:
             QMessageBox.critical(self, "Error", "Failed to save shot!")

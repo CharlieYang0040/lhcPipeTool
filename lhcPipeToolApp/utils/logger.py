@@ -16,7 +16,7 @@ def setup_logger(name):
     if logger.handlers:
         return logger
         
-    logger.setLevel(logging.DEBUG)  # 로그 레벨을 DEBUG로 변경
+    logger.setLevel(logging.INFO)  # 로그 레벨을 DEBUG로 변경
     
     # 파일 핸들러 설정
     log_dir = Path("logs")

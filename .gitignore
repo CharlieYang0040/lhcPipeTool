@@ -8,7 +8,7 @@
 Firebird_5_0/
 
 # Backup Directory
-backup/
+backups/
 
 # Test Directory
 TestSequence/

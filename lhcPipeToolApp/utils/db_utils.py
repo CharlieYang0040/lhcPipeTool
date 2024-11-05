@@ -101,4 +101,30 @@ def check_database_connection(connector):
     
 # 날짜 형식 변환
 def convert_date_format(date):
-    return date.replace(microsecond=0)
+    """날짜 형식 변환
+    Args:
+        date: 변환할 날짜 (datetime, int, str)
+    Returns:
+        str: YYYY-MM-DD HH:MM:SS 형식의 문자열
+    """
+    try:
+        if isinstance(date, int):
+            # Unix timestamp를 datetime으로 변환
+            from datetime import datetime
+            date = datetime.fromtimestamp(date)
+        
+        if isinstance(date, str):
+            # 문자열을 datetime으로 변환
+            from datetime import datetime
+            date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+            
+        # datetime 객체의 경우 microsecond 제거
+        if hasattr(date, 'replace'):
+            date = date.replace(microsecond=0)
+            
+        return str(date)
+        
+    except Exception as e:
+        logger = setup_logger(__name__)
+        logger.error(f"날짜 변환 실패: {str(e)}", exc_info=True)
+        return str(date)  # 변환 실패시 원본 반환

@@ -13,8 +13,6 @@ def initialize_database():
     
     if not connector.connect():
         return None
-        
-    table_manager = TableManager(connector)
     
     return connector
 

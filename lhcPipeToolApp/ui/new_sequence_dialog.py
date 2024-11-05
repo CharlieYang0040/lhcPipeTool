@@ -3,11 +3,12 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit,
                               QPushButton, QLabel, QMessageBox)
 
 class NewSequenceDialog(QDialog):
-    def __init__(self, project_service, project_id, sequence=None, parent=None):
+    def __init__(self, project_service, project_id, project_tree, sequence=None, parent=None):
         super().__init__(parent)
         self.project_service = project_service
         self.project_id = project_id
         self.sequence = sequence  # 편집 모드일 경우 기존 시퀀스 정보
+        self.project_tree = project_tree  # 프로젝트 트리 참조 저장
         self.setup_ui()
         
     def setup_ui(self):
@@ -48,6 +49,7 @@ class NewSequenceDialog(QDialog):
             )
             
         if success:
+            self.project_tree.refresh()  # 프로젝트 트리 새로고침
             self.accept()
         else:
             QMessageBox.critical(

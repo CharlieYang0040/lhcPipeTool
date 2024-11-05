@@ -44,6 +44,8 @@ class TableManager:
             'sequences',
             'shots',
             'workers',
+            'projects_versions',
+            'sequences_versions',
             'versions'
         ]
         
