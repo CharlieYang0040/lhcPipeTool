@@ -1,6 +1,6 @@
 """프로젝트 트리 위젯"""
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QMessageBox
-from PySide6.QtCore import Signal, Qt, QSize
+from PySide6.QtCore import Signal, Qt, QSize, QEvent
 from ..services.project_service import ProjectService
 from ..services.version_service import VersionService
 from ..services.project_version_service import ProjectVersionService
@@ -12,6 +12,8 @@ from ..utils.event_system import EventSystem
 import os
 
 class ProjectTreeWidget(QTreeWidget):
+    project_selected = Signal(int)  # 프로젝트 ID 시그널
+    sequence_selected = Signal(int)  # 시퀀스 ID 시그널
     shot_selected = Signal(int)  # 샷 ID 시그널
 
     def __init__(self, db_connector):
@@ -244,11 +246,13 @@ class ProjectTreeWidget(QTreeWidget):
             
             # 새 버전 다이얼로그 생성 및 실행
             if item_type == "project":
-                dialog = NewVersionDialog(self.project_version_service, item_id, self)
+                dialog = NewVersionDialog(self.project_version_service, item_id, item_type, self)
+                self.project_selected.emit(item_id)
             elif item_type == "sequence":
-                dialog = NewVersionDialog(self.sequence_version_service, item_id, self)
+                dialog = NewVersionDialog(self.sequence_version_service, item_id, item_type, self)
+                self.sequence_selected.emit(item_id)
             else:  # shot
-                dialog = NewVersionDialog(self.version_service, item_id, self)
+                dialog = NewVersionDialog(self.version_service, item_id, item_type, self)
             
             if dialog.exec_():
                 self.logger.info("새 버전 생성 성공")
@@ -313,17 +317,20 @@ class ProjectTreeWidget(QTreeWidget):
             
         # 아이템의 타입과 ID 가져오기
         item_type, item_id = item.data(0, Qt.UserRole)
+        self.logger.debug(f"트리 아이템 클릭 - item_type: {item_type}, item_id: {item_id}")
         
-        # 샷 아이템 클릭 시 시그널 발생
-        if item_type == "shot":
+        # 아이템 클릭 시 시그널 발생
+        if item_type == "project":
+            self.project_selected.emit(item_id)
+        elif item_type == "sequence":
+            self.sequence_selected.emit(item_id)
+        elif item_type == "shot":
             self.shot_selected.emit(item_id)
         else:
             # 샷이 아닌 경우 버전 테이블 초기화
             self.shot_selected.emit(-1)  # -1은 선택 해제를 의미
 
     def eventFilter(self, obj, event):
-        from PySide6.QtCore import QEvent
-        from PySide6.QtGui import QMouseEvent
         
         if (obj == self.viewport() and 
             event.type() == QEvent.MouseButtonPress):

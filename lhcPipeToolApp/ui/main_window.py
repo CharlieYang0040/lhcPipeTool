@@ -138,6 +138,8 @@ class MainWindow(QMainWindow):
         """)
         
         # 시그널 연결
+        self.project_tree.sequence_selected.connect(self.handle_sequence_selection)
+        self.project_tree.project_selected.connect(self.handle_project_selection)
         self.project_tree.shot_selected.connect(self.handle_shot_selection)
         self.version_table.version_selected.connect(self.handle_version_selection)
 
@@ -248,13 +250,27 @@ class MainWindow(QMainWindow):
         if self.database_service.clear_database(self):
             self.project_tree.clear()
 
+    def handle_project_selection(self, project_id):
+        """프로젝트 선택 처리"""
+        if project_id == -1:
+            self.version_table.clear_versions()
+        else:
+            self.version_table.load_versions(project_id, "project")
+
+    def handle_sequence_selection(self, sequence_id):
+        """시퀀스 선택 처리"""
+        if sequence_id == -1:
+            self.version_table.clear_versions()
+        else:
+            self.version_table.load_versions(sequence_id, "sequence")
+
     def handle_shot_selection(self, shot_id):
         """샷 선택 처리"""
         if shot_id == -1:
             self.version_table.clear_versions()
         else:
-            self.version_table.load_versions(shot_id)
+            self.version_table.load_versions(shot_id, "shot")
 
     def handle_version_selection(self, version_id):
-        """버전 선택 처리"""
+        """버전테이블에서 버전 선택 처리"""
         self.detail_panel.show_version_details(version_id)

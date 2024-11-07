@@ -2,6 +2,8 @@
 from PySide6.QtWidgets import (QTableWidget, QTableWidgetItem, QVBoxLayout, 
                                QWidget, QMessageBox, QMenu, QHeaderView, QDialog)
 from PySide6.QtCore import Qt, Signal, QEvent
+from ..services.project_version_service import ProjectVersionService
+from ..services.sequence_version_service import SequenceVersionService
 from ..services.version_service import VersionService
 from ..ui.new_version_dialog import NewVersionDialog
 from ..utils.logger import setup_logger
@@ -14,8 +16,10 @@ class VersionTableWidget(QWidget):
     def __init__(self, db_connector):
         super().__init__()
         self.logger = setup_logger(__name__)
+        self.project_version_service = ProjectVersionService(db_connector)
+        self.sequence_version_service = SequenceVersionService(db_connector)
         self.version_service = VersionService(db_connector)
-        self.new_version_dialog = NewVersionDialog(self.version_service, self)
+        self.new_version_dialog = NewVersionDialog(self.version_service, item_id=None, item_type="shot", parent=self)
         self.setup_ui()
         
         # 테이블 선택 변경 시그널 연결
@@ -187,14 +191,19 @@ class VersionTableWidget(QWidget):
             else:
                 QMessageBox.warning(self, "오류", "버전을 삭제하는데 실패했습니다.")
 
-    def load_versions(self, shot_id):
+    def load_versions(self, item_id, item_type):
         """버전 목록 로드"""
-        self.current_shot_id = shot_id
+        self.current_item_id = item_id
         self.table.setRowCount(0)
         
         try:
-            self.logger.debug(f"샷 ID {shot_id}의 버전 목록 로드 시작")
-            versions = self.version_service.get_all_versions(shot_id)
+            self.logger.debug(f"{item_type} ID {item_id}의 버전 목록 로드 시작")
+            if item_type == "project":
+                versions = self.project_version_service.get_all_versions(item_id)
+            elif item_type == "sequence":
+                versions = self.sequence_version_service.get_all_versions(item_id)
+            else:
+                versions = self.version_service.get_all_versions(item_id)
             
             if not versions:
                 self.logger.debug("버전 정보가 없습니다.")

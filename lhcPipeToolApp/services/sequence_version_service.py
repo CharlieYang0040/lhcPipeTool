@@ -118,9 +118,9 @@ class SequenceVersionService:
         return self.version_model.get_by_id(version_id)
 
     def get_all_versions(self, sequence_id):
-        """샷의 모든 버전 조회"""
+        """시퀀스의 모든 버전 조회"""
         try:
-            self.logger.debug(f"샷 ID {sequence_id}의 모든 버전 조회 시작")
+            self.logger.debug(f"시퀀스 ID {sequence_id}의 모든 버전 조회 시작")
             cursor = self.connector.cursor()
             
             query = """
@@ -131,7 +131,7 @@ class SequenceVersionService:
                     w.name as worker_name,
                     v.created_at,
                     v.status
-                FROM versions v
+                FROM sequence_versions v
                 LEFT JOIN workers w ON v.worker_id = w.id
                 WHERE v.sequence_id = ?
                 ORDER BY v.version_number DESC
@@ -221,7 +221,7 @@ class SequenceVersionService:
                     v.render_path,
                     v.comment,
                     v.created_at
-                FROM versions v
+                FROM sequence_versions v
                 LEFT JOIN workers w ON v.worker_id = w.id
                 WHERE v.id = ?
             """

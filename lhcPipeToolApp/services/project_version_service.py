@@ -118,9 +118,9 @@ class ProjectVersionService:
         return self.version_model.get_by_id(version_id)
 
     def get_all_versions(self, project_id):
-        """샷의 모든 버전 조회"""
+        """프로젝트의 모든 버전 조회"""
         try:
-            self.logger.debug(f"샷 ID {project_id}의 모든 버전 조회 시작")
+            self.logger.debug(f"프로젝트 ID {project_id}의 모든 버전 조회 시작")
             cursor = self.connector.cursor()
             
             query = """
@@ -131,7 +131,7 @@ class ProjectVersionService:
                     w.name as worker_name,
                     v.created_at,
                     v.status
-                FROM versions v
+                FROM project_versions v
                 LEFT JOIN workers w ON v.worker_id = w.id
                 WHERE v.project_id = ?
                 ORDER BY v.version_number DESC
@@ -221,7 +221,7 @@ class ProjectVersionService:
                     v.render_path,
                     v.comment,
                     v.created_at
-                FROM versions v
+                FROM project_versions v
                 LEFT JOIN workers w ON v.worker_id = w.id
                 WHERE v.id = ?
             """

@@ -10,10 +10,11 @@ from PySide6.QtCore import Qt, QEvent, QSettings, QSize
 from PySide6.QtGui import QIcon, QPixmap, QImage
 
 class NewVersionDialog(QDialog):
-    def __init__(self, version_service, shot_id, parent=None):
+    def __init__(self, version_service, item_id, item_type, parent=None):
         super().__init__(parent)
         self.version_service = version_service
-        self.shot_id = shot_id
+        self.item_id = item_id
+        self.item_type = item_type
         self.logger = setup_logger(__name__)
         self.preview_generator = PreviewGenerator()
         self.settings = QSettings('LHC', 'PipeTool')
@@ -37,7 +38,13 @@ class NewVersionDialog(QDialog):
         return super().eventFilter(obj, event)
         
     def setup_ui(self):
-        self.setWindowTitle("새 버전 생성")
+        self.logger.debug(f"item_type: {self.item_type}")
+        if self.item_type == "project":
+            self.setWindowTitle("새 프로젝트 버전 생성")
+        elif self.item_type == "sequence":
+            self.setWindowTitle("새 시퀀스 버전 생성")
+        else:  # shot
+            self.setWindowTitle("새 샷 버전 생성")
         self.setMinimumWidth(500)
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
@@ -367,15 +374,35 @@ class NewVersionDialog(QDialog):
         self.save_worker_history(worker_name)
         
         # TODO item_type에 따라 버전 생성
-        success = self.version_service.create_version(
-            shot_id=self.shot_id,
-            worker_name=worker_name,
-            file_path=file_path,
-            preview_path=preview_path,
-            comment=self.comment_input.toPlainText(),
-            status=status
-        )
-        
+        self.logger.debug(f"item_type: {self.item_type}")
+        if self.item_type == "project":
+            success = self.version_service.create_version(
+                project_id=self.item_id,
+                worker_name=worker_name,
+                file_path=file_path,
+                preview_path=preview_path,
+                comment=self.comment_input.toPlainText(),
+                status=status
+            )
+        elif self.item_type == "sequence":
+            success = self.version_service.create_version(
+                sequence_id=self.item_id,
+                worker_name=worker_name,
+                file_path=file_path,
+                preview_path=preview_path,
+                comment=self.comment_input.toPlainText(),
+                status=status
+            )
+        else:  # shot
+            success = self.version_service.create_version(
+                shot_id=self.item_id,
+                worker_name=worker_name,
+                file_path=file_path,
+                preview_path=preview_path,
+                comment=self.comment_input.toPlainText(),
+                status=status
+            )
+
         if success:
             self.accept()
         else:
