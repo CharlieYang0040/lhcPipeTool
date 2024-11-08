@@ -14,6 +14,7 @@ import os
 
 class ProjectTreeWidget(QTreeWidget):
     item_selected = Signal(int)
+    item_type_changed = Signal(str, int)
 
     def __init__(self, db_connector):
         super().__init__()
@@ -30,6 +31,7 @@ class ProjectTreeWidget(QTreeWidget):
         self.load_projects()
         # 빈 공간 클릭 이벤트 연결
         self.viewport().installEventFilter(self)
+        self.installEventFilter(self)
         
         # 이벤트 구독
         EventSystem.subscribe('project_updated', self.refresh)
@@ -125,6 +127,7 @@ class ProjectTreeWidget(QTreeWidget):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.itemClicked.connect(self.handle_item_click)
+        
 
     def load_projects(self):
         """프로젝트 목록 로드"""
@@ -136,6 +139,8 @@ class ProjectTreeWidget(QTreeWidget):
             cursor.execute("SELECT * FROM projects ORDER BY name")
             projects = cursor.fetchall()
             
+            self.setSelectionMode(QTreeWidget.ExtendedSelection)
+
             for project in projects:
                 project_item = QTreeWidgetItem([""])
                 project_item.setData(0, Qt.UserRole, ("project", project[0]))
@@ -215,7 +220,7 @@ class ProjectTreeWidget(QTreeWidget):
 
     def add_sequence(self, parent_item, project_id):
         """시퀀스 추가"""
-        name, ok = QInputDialog.getText(self, "시퀀 추가", "시퀀스 이름을 입력하세요:")
+        name, ok = QInputDialog.getText(self, "시퀀스 추가", "시퀀스 이름을 입력하세요:")
         if ok and name:
             # 이름 유효성 검사 추가
             if len(name) > 100:  # 데이터베이스 필드 길이에 맞춰 조정
@@ -310,22 +315,15 @@ class ProjectTreeWidget(QTreeWidget):
             return
         
         item_type, item_id = item.data(0, Qt.UserRole)
-        self.logger.debug(f"트리 아이템 클릭 - item_type: {item_type}, item_id: {item_id}")
+        self.logger.debug(f"트리 아이템 클릭 - type: {item_type}, id: {item_id}")
         
         # AppState 업데이트
         self.app_state.current_item_type = item_type
         self.app_state.current_item_id = item_id
-
-        # 아이템 클릭 시 시그널 발생
-        if item_type == "project":
-            self.item_selected.emit(item_id)
-        elif item_type == "sequence":
-            self.item_selected.emit(item_id)
-        elif item_type == "shot":
-            self.item_selected.emit(item_id)
-        else:
-            # 샷이 아닌 경우 버전 테이블 초기화
-            self.item_selected.emit(-1)  # -1은 선택 해제를 의미
+        
+        # 두 시그널 모두 발생
+        self.item_selected.emit(item_id)  # 버전 테이블용
+        self.item_type_changed.emit(item_type, item_id)  # 디테일 패널용
 
     def eventFilter(self, obj, event):
         if (obj == self.viewport() and 
@@ -339,8 +337,35 @@ class ProjectTreeWidget(QTreeWidget):
                 self.clearSelection()  # 선택 해제
                 self.item_selected.emit(-1)  # 선택 해제 시그널 발생
                 
+        elif event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Delete:
+                self.delete_selected_items()
+                return True
+            
         return super().eventFilter(obj, event)
 
     def refresh(self):
         """프로젝트 트리 새로고침"""
         self.load_projects()
+
+    def delete_selected_items(self):
+        """선택된 아이템들 삭제"""
+        self.logger.debug(f"선택된 아이템들 : {self.selectedItems()}")
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+        
+        for item in selected_items:
+            item_type, item_id = item.data(0, Qt.UserRole)
+            self.delete_item(item, item_type, item_id)
+
+    def delete_item(self, item, item_type, item_id):
+        """아이템 삭제"""
+        if item_type == "project":
+            self.delete_project(item, item_id)
+        elif item_type == "sequence":
+            self.delete_sequence(item, item_id)
+        elif item_type == "shot":
+            self.delete_shot(item, item_id)
+
+        

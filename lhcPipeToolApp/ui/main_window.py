@@ -145,6 +145,7 @@ class MainWindow(QMainWindow):
         
         # 시그널 연결
         self.project_tree.item_selected.connect(self.handle_item_selection)
+        self.project_tree.item_type_changed.connect(self.handle_item_type_changed)
         self.version_table.version_selected.connect(self.handle_version_selection)
 
     def setup_menu(self):
@@ -261,3 +262,7 @@ class MainWindow(QMainWindow):
     def handle_version_selection(self, version_id):
         """버전테이블에서 버전 선택 처리"""
         self.detail_panel.show_version_details(version_id)
+
+    def handle_item_type_changed(self, item_type, item_id):
+        """아이템 타입 변경 처리"""
+        self.detail_panel.show_item_details(item_type, item_id)

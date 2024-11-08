@@ -4,6 +4,7 @@ from ..models.sequence import Sequence
 from ..models.shot import Shot
 from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
 from ..utils.logger import setup_logger
+from ..utils.db_utils import convert_date_format
 from ..database.table_manager import TableManager
 from .worker_service import WorkerService
 from ..utils.event_system import EventSystem
@@ -109,12 +110,13 @@ class ProjectService:
             self.connector.rollback()
             raise
 
-    def create_sequence(self, project_id, name, description=None):
+    def create_sequence(self, project_id, name, level_path=None, description=None):
         """시퀀스 생성"""
         try:
             self.logger.info(f"""시퀀스 생성 시도:
                 프로젝트 ID: {project_id}
                 이름: {name}
+                레벨 경로: {level_path}
                 설명: {description}
             """)
             
@@ -123,11 +125,11 @@ class ProjectService:
             
             cursor = self.connector.cursor()
             sql = """
-                INSERT INTO SEQUENCES (PROJECT_ID, NAME, DESCRIPTION)
-                VALUES (?, ?, ?)
+                INSERT INTO SEQUENCES (PROJECT_ID, NAME, LEVEL_PATH, DESCRIPTION)
+                VALUES (?, ?, ?, ?)
                 RETURNING ID
             """
-            cursor.execute(sql, (project_id, str(name), description))
+            cursor.execute(sql, (project_id, str(name), level_path, description))
             sequence_id = cursor.fetchone()[0]
             self.connector.commit()
             EventSystem.notify('project_updated')  # 이벤트 발생
@@ -297,6 +299,7 @@ class ProjectService:
             self.logger.error(f"프로젝트 조회 실패: {str(e)}")
             return None
 
+    # TODO 언리얼 시퀀서와 json으로 폴더구조 공유 및 생성 기능 추가
     def sync_project_structure(self, root_path):
         """프로젝트 구조 동기화"""
         try:
@@ -377,7 +380,7 @@ class ProjectService:
                 try:
                     shot = self.get_shot_by_name(sequence_id, shot_dir.name)
                     if not shot:
-                        self.logger.info(f"동기화 할 샷이 없습니다.")
+                        self.logger.info(f"동���화 할 샷이 없습니다.")
                     else:
                         shot_id = shot[0]
                         self.logger.debug(f"기존 샷 발견: {shot_dir.name}")
@@ -444,3 +447,146 @@ class ProjectService:
             self.logger.error(f"프로젝트 경로 업데이트 실패: {str(e)}")
             self.connector.rollback()
             return False
+
+    def get_project_details(self, project_id):
+        """프로젝트 상세 정보 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            query = """
+                SELECT p.*,
+                       (SELECT COUNT(*) FROM PROJECT_VERSIONS 
+                        WHERE project_id = p.id) as version_count,
+                       (SELECT FIRST 1 preview_path FROM PROJECT_VERSIONS 
+                        WHERE project_id = p.id 
+                        ORDER BY created_at DESC) as latest_preview
+                FROM PROJECTS p
+                WHERE p.id = ?
+            """
+            cursor.execute(query, (project_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None
+                
+            return {
+                'id': result[0],
+                'name': result[1],
+                'path': result[2],
+                'description': result[3],
+                'created_at': convert_date_format(result[4]),
+                'version_count': result[5],
+                'preview_path': result[6]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"프로젝트 상세 정보 조회 실패: {str(e)}", exc_info=True)
+            return None
+
+    def get_sequence_details(self, sequence_id):
+        """시퀀스 상세 정보 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            query = """
+                SELECT s.id, s.name, s.project_id, s.level_path, s.description, s.created_at,
+                    p.name as project_name,
+                    (SELECT COUNT(*) FROM SHOTS 
+                        WHERE sequence_id = s.id) as shot_count,
+                    (SELECT FIRST 1 preview_path FROM SEQUENCE_VERSIONS 
+                        WHERE sequence_id = s.id 
+                        ORDER BY created_at DESC) as latest_preview
+                FROM SEQUENCES s
+                JOIN PROJECTS p ON s.project_id = p.id
+                WHERE s.id = ?
+            """
+            cursor.execute(query, (sequence_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None
+                
+            return {
+                'id': result[0],
+                'name': result[1],
+                'project_id': result[2],
+                'level_path': result[3],
+                'description': result[4],
+                'created_at': convert_date_format(result[5]),
+                'project_name': result[6],
+                'shot_count': result[7],
+                'preview_path': result[8]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"시퀀스 상세 정보 조회 실패: {str(e)}", exc_info=True)
+            return None
+
+
+    def get_shot_details(self, shot_id):
+        """샷 상세 정보 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            query = """
+                SELECT sh.*,
+                       s.name as sequence_name,
+                       p.name as project_name,
+                       (SELECT COUNT(*) FROM VERSIONS 
+                        WHERE shot_id = sh.id) as version_count,
+                       (SELECT FIRST 1 preview_path FROM VERSIONS 
+                        WHERE shot_id = sh.id 
+                        ORDER BY created_at DESC) as latest_preview
+                FROM SHOTS sh
+                JOIN SEQUENCES s ON sh.sequence_id = s.id
+                JOIN PROJECTS p ON s.project_id = p.id
+                WHERE sh.id = ?
+            """
+            cursor.execute(query, (shot_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None
+                
+            return {
+                'id': result[0],
+                'name': result[1],
+                'sequence_id': result[2],
+                'status': result[3],
+                'description': result[4],
+                'created_at': convert_date_format(result[5]),
+                'sequence_name': result[6],
+                'project_name': result[7],
+                'version_count': result[8],
+                'preview_path': result[9]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"샷 상세 정보 조회 실패: {str(e)}", exc_info=True)
+            return None
+
+    def get_version_count(self, item_type, item_id):
+        """특정 아이템의 버전 수 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            if item_type == "project":
+                query = "SELECT COUNT(*) FROM VERSIONS WHERE project_id = ?"
+            elif item_type == "sequence":
+                query = """
+                    SELECT COUNT(*) FROM VERSIONS v
+                    JOIN SHOTS s ON v.shot_id = s.id
+                    WHERE s.sequence_id = ?
+                """
+            elif item_type == "shot":
+                query = "SELECT COUNT(*) FROM VERSIONS WHERE shot_id = ?"
+            else:
+                return 0
+                
+            cursor.execute(query, (item_id,))
+            result = cursor.fetchone()
+            return result[0] if result else 0
+            
+        except Exception as e:
+            self.logger.error(f"버전 수 조회 실패: {str(e)}", exc_info=True)
+            return 0
