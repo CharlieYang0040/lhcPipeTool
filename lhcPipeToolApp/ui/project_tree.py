@@ -2,27 +2,30 @@
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QMessageBox
 from PySide6.QtCore import Signal, Qt, QSize, QEvent
 from ..services.project_service import ProjectService
-from ..services.version_service import VersionService
-from ..services.project_version_service import ProjectVersionService
-from ..services.sequence_version_service import SequenceVersionService
+from ..services.version_services import (
+    ShotVersionService, SequenceVersionService, ProjectVersionService
+)
 from ..utils.logger import setup_logger
 from .project_tree_item import CustomTreeItemWidget
 from .new_version_dialog import NewVersionDialog
 from ..utils.event_system import EventSystem
+from ..config.app_state import AppState
 import os
 
 class ProjectTreeWidget(QTreeWidget):
-    project_selected = Signal(int)  # 프로젝트 ID 시그널
-    sequence_selected = Signal(int)  # 시퀀스 ID 시그널
-    shot_selected = Signal(int)  # 샷 ID 시그널
+    item_selected = Signal(int)
 
     def __init__(self, db_connector):
         super().__init__()
         self.logger = setup_logger(__name__)
+        self.db_connector = db_connector
         self.project_service = ProjectService(db_connector)
-        self.version_service = VersionService(db_connector)
-        self.project_version_service = ProjectVersionService(db_connector)
-        self.sequence_version_service = SequenceVersionService(db_connector)
+        self.version_services = {
+            "shot": ShotVersionService(db_connector, self.logger),
+            "sequence": SequenceVersionService(db_connector, self.logger),
+            "project": ProjectVersionService(db_connector, self.logger)
+        }
+        self.app_state = AppState()
         self.setup_ui()
         self.load_projects()
         # 빈 공간 클릭 이벤트 연결
@@ -174,7 +177,7 @@ class ProjectTreeWidget(QTreeWidget):
                     shots = cursor.fetchall()
                     
                     for shot in shots:
-                        latest_version = self.version_service.get_latest_version(shot[0])
+                        latest_version = self.version_services["shot"].get_latest_version(shot[0])
                         preview_path = latest_version[7] if latest_version else None
                         shot_item = QTreeWidgetItem([""])
                         shot_item.setData(0, Qt.UserRole, ("shot", shot[0]))
@@ -243,22 +246,13 @@ class ProjectTreeWidget(QTreeWidget):
         """버전 추가"""
         try:
             self.logger.debug(f"버전 추가 시작 - item_type: {item_type}, item_id: {item_id}")
-            
-            # 새 버전 다이얼로그 생성 및 실행
-            if item_type == "project":
-                dialog = NewVersionDialog(self.project_version_service, item_id, item_type, self)
-                self.project_selected.emit(item_id)
-            elif item_type == "sequence":
-                dialog = NewVersionDialog(self.sequence_version_service, item_id, item_type, self)
-                self.sequence_selected.emit(item_id)
-            else:  # shot
-                dialog = NewVersionDialog(self.version_service, item_id, item_type, self)
-            
+
+            dialog = NewVersionDialog(self.db_connector, item_id, item_type, self)
+                
             if dialog.exec_():
                 self.logger.info("새 버전 생성 성공")
                 # 버전 테이블 새로고침을 위해 shot_selected 시그널 재발생
-                if item_type == "shot":
-                    self.shot_selected.emit(item_id)
+                self.item_selected.emit(item_id)
                 return True
                 
             self.logger.debug("버전 생성 취소됨")
@@ -314,24 +308,26 @@ class ProjectTreeWidget(QTreeWidget):
         """트리 아이템 클릭 처리"""
         if not item:
             return
-            
-        # 아이템의 타입과 ID 가져오기
+        
         item_type, item_id = item.data(0, Qt.UserRole)
         self.logger.debug(f"트리 아이템 클릭 - item_type: {item_type}, item_id: {item_id}")
         
+        # AppState 업데이트
+        self.app_state.current_item_type = item_type
+        self.app_state.current_item_id = item_id
+
         # 아이템 클릭 시 시그널 발생
         if item_type == "project":
-            self.project_selected.emit(item_id)
+            self.item_selected.emit(item_id)
         elif item_type == "sequence":
-            self.sequence_selected.emit(item_id)
+            self.item_selected.emit(item_id)
         elif item_type == "shot":
-            self.shot_selected.emit(item_id)
+            self.item_selected.emit(item_id)
         else:
             # 샷이 아닌 경우 버전 테이블 초기화
-            self.shot_selected.emit(-1)  # -1은 선택 해제를 의미
+            self.item_selected.emit(-1)  # -1은 선택 해제를 의미
 
     def eventFilter(self, obj, event):
-        
         if (obj == self.viewport() and 
             event.type() == QEvent.MouseButtonPress):
             
@@ -341,7 +337,7 @@ class ProjectTreeWidget(QTreeWidget):
             # 아이템이 없는 곳을 클릭했을 경우
             if not item:
                 self.clearSelection()  # 선택 해제
-                self.shot_selected.emit(-1)  # 선택 해제 시그널 발생
+                self.item_selected.emit(-1)  # 선택 해제 시그널 발생
                 
         return super().eventFilter(obj, event)
 

@@ -3,25 +3,27 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
     QDialog, QMessageBox, QToolBar, QStyle
 )
-from PySide6.QtCore import Qt
 from .project_tree import ProjectTreeWidget
 from .version_table import VersionTableWidget
 from .detail_panel import DetailPanel
 from ..services.project_service import ProjectService
-from ..services.version_service import VersionService
 from ..services.worker_service import WorkerService
 from ..services.refresh_service import RefreshService
 from ..services.database_service import DatabaseService
+from ..services.version_services import (
+    ShotVersionService, SequenceVersionService, ProjectVersionService
+)
 
 from ..database.table_manager import TableManager
 from ..utils.logger import setup_logger
+from ..config.app_state import AppState
 
 class MainWindow(QMainWindow):
     def __init__(self, db_connector):
         super().__init__()
         self.db_connector = db_connector
         self.logger = setup_logger(__name__)
-        
+        self.app_state = AppState()
         if not self.db_connector.connection and not self.db_connector.connect():
             self.logger.error("데이터베이스 연결 실패")
             raise Exception("데이터베이스 연결 실패")
@@ -30,9 +32,13 @@ class MainWindow(QMainWindow):
         
         # 서비스 초기화
         self.project_service = ProjectService(db_connector)
-        self.version_service = VersionService(db_connector)
+        self.version_services = {
+            "shot": ShotVersionService(db_connector, self.logger),
+            "sequence": SequenceVersionService(db_connector, self.logger),
+            "project": ProjectVersionService(db_connector, self.logger)
+        }
         self.worker_service = WorkerService(db_connector)
-        self.refresh_service = RefreshService(db_connector, self.project_service, self.version_service, self.logger)
+        self.refresh_service = RefreshService(db_connector, self.project_service, self.version_services, self.logger)
         self.database_service = DatabaseService(db_connector, self.logger)
         
         # settings 테이블 초기화
@@ -138,9 +144,7 @@ class MainWindow(QMainWindow):
         """)
         
         # 시그널 연결
-        self.project_tree.sequence_selected.connect(self.handle_sequence_selection)
-        self.project_tree.project_selected.connect(self.handle_project_selection)
-        self.project_tree.shot_selected.connect(self.handle_shot_selection)
+        self.project_tree.item_selected.connect(self.handle_item_selection)
         self.version_table.version_selected.connect(self.handle_version_selection)
 
     def setup_menu(self):
@@ -192,35 +196,32 @@ class MainWindow(QMainWindow):
 
     def show_new_version_dialog(self):
         """새 버전 다이얼로그"""
-        current_item = self.project_tree.currentItem()
-        if not current_item:
-            QMessageBox.warning(self, "경고", "샷을 선택해주세요.")
-            return
-            
-        item_type, shot_id = current_item.data(0, Qt.UserRole)
-        if item_type != "shot":
-            QMessageBox.warning(self, "경고", "샷을 선택해주세요.")
+        if not self.app_state.current_item_id:
+            QMessageBox.warning(self, "경고", "아이템을 선택해주세요.")
             return
             
         from .new_version_dialog import NewVersionDialog
-        dialog = NewVersionDialog(self.version_service, shot_id, self)
+        dialog = NewVersionDialog(
+            self.db_connector, 
+            self.app_state.current_item_id, 
+            self.app_state.current_item_type, 
+            self
+        )
         if dialog.exec_() == QDialog.Accepted:
-            self.version_table.load_versions(shot_id)
+            self.version_table.load_versions(self.app_state.current_item_id)
 
     def show_render_manager(self):
         """렌더 관리자 다이얼로그"""
-        current_item = self.project_tree.currentItem()
-        if not current_item:
-            QMessageBox.warning(self, "경고", "샷을 선택해주세요.")
-            return
-            
-        item_type, shot_id = current_item.data(0, Qt.UserRole)
-        if item_type != "shot":
+        if not self.app_state.current_item_id or self.app_state.current_item_type != "shot":
             QMessageBox.warning(self, "경고", "샷을 선택해주세요.")
             return
             
         from .render_manager_dialog import RenderManagerDialog
-        dialog = RenderManagerDialog(self.version_service, shot_id, self)
+        dialog = RenderManagerDialog(
+            self.version_services[self.app_state.current_item_type], 
+            self.app_state.current_item_id, 
+            self
+        )
         dialog.exec_()
 
     def show_settings_dialog(self):
@@ -250,26 +251,12 @@ class MainWindow(QMainWindow):
         if self.database_service.clear_database(self):
             self.project_tree.clear()
 
-    def handle_project_selection(self, project_id):
-        """프로젝트 선택 처리"""
-        if project_id == -1:
+    def handle_item_selection(self, item_id):
+        """아이템 선택 처리"""
+        if item_id == -1:
             self.version_table.clear_versions()
         else:
-            self.version_table.load_versions(project_id, "project")
-
-    def handle_sequence_selection(self, sequence_id):
-        """시퀀스 선택 처리"""
-        if sequence_id == -1:
-            self.version_table.clear_versions()
-        else:
-            self.version_table.load_versions(sequence_id, "sequence")
-
-    def handle_shot_selection(self, shot_id):
-        """샷 선택 처리"""
-        if shot_id == -1:
-            self.version_table.clear_versions()
-        else:
-            self.version_table.load_versions(shot_id, "shot")
+            self.version_table.load_versions(item_id)
 
     def handle_version_selection(self, version_id):
         """버전테이블에서 버전 선택 처리"""

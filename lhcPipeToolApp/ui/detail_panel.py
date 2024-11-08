@@ -2,18 +2,26 @@
 import os, subprocess
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTextEdit, QMessageBox, QHBoxLayout,
-    QScrollArea, QFrame, QGridLayout, QLineEdit, QPushButton, QApplication, QSizePolicy
+    QFrame, QLineEdit, QPushButton, QApplication, QSizePolicy
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from ..services.version_service import VersionService
+from ..services.version_services import (
+    ShotVersionService, SequenceVersionService, ProjectVersionService
+)
 from ..utils.logger import setup_logger
+from ..config.app_state import AppState
 
 class DetailPanel(QWidget):
     def __init__(self, db_connector):
         super().__init__()
         self.logger = setup_logger(__name__)
-        self.version_service = VersionService(db_connector)
+        self.version_services = {
+            "shot": ShotVersionService(db_connector, self.logger),
+            "sequence": SequenceVersionService(db_connector, self.logger),
+            "project": ProjectVersionService(db_connector, self.logger)
+        }
+        self.app_state = AppState()
         self.setup_ui()
 
     def setup_ui(self):
@@ -246,7 +254,7 @@ class DetailPanel(QWidget):
                 self.clear_details()
                 return
 
-            version = self.version_service.get_version_details(version_id)
+            version = self.version_services[self.app_state.current_item_type].get_version_details(version_id)
             self.logger.debug(f"조회된 버전 정보: {version}")
             
             if not version:

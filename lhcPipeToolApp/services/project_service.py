@@ -2,7 +2,7 @@
 from ..models.project import Project
 from ..models.sequence import Sequence
 from ..models.shot import Shot
-from ..models.version import Version
+from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
 from ..utils.logger import setup_logger
 from ..database.table_manager import TableManager
 from .worker_service import WorkerService
@@ -14,10 +14,14 @@ class ProjectService:
         self.project_model = Project(connector)
         self.sequence_model = Sequence(connector)
         self.shot_model = Shot(connector)
-        self.version_model = Version(connector)
         self.logger = setup_logger(__name__)
         self.table_manager = TableManager(connector)
         self.worker_service = WorkerService(connector)
+        self.version_models = {
+            "shot_id": ShotVersion(connector),
+            "sequence_id": SequenceVersion(connector),
+            "project_id": ProjectVersion(connector)
+        }
         
     def get_project_structure(self, project_id):
         """프로젝트의 전체 구조 조회"""
@@ -46,7 +50,7 @@ class ProjectService:
                 shot_list = []
                 
                 for shot in shots:
-                    latest_version = self.version_model.get_latest_version(shot[0])
+                    latest_version = self.version_models["shot_id"].get_latest_version(shot[0])
                     shot_info = {
                         "id": shot[0],
                         "name": shot[2],
@@ -305,18 +309,10 @@ class ProjectService:
                     continue
                     
                 try:
-                    # 프로젝트 생성 는 업데이트
+                    # 프로젝트 업데이트
                     project = self.get_project_by_name(project_dir.name)
                     if not project:
-                        self.logger.info(f"""새 프로젝트 생성 중:
-                            이름: {project_dir.name}
-                            경로: {project_dir}
-                        """)
-                        project_id = self.create_project(
-                            name=project_dir.name,
-                            path=str(project_dir)
-                        )
-                        project_count += 1
+                        self.logger.info(f"동기화 할 프로젝트가 없습니다.")
                     else:
                         project_id = project[0]
                         self.logger.debug(f"기존 프로젝트 발견: {project_dir.name}")
@@ -350,15 +346,7 @@ class ProjectService:
                 try:
                     sequence = self.get_sequence_by_name(project_id, seq_dir.name)
                     if not sequence:
-                        self.logger.info(f"""새 시퀀스 생성 중:
-                            Project ID: {project_id}
-                            이름: {seq_dir.name}
-                        """)
-                        sequence_id = self.create_sequence(
-                            project_id=project_id,
-                            name=seq_dir.name
-                        )
-                        sequence_count += 1
+                        self.logger.info(f"동기화 할 시퀀스가 없습니다.")
                     else:
                         sequence_id = sequence[0]
                         self.logger.debug(f"기존 시퀀스 발견: {seq_dir.name}")
@@ -389,16 +377,7 @@ class ProjectService:
                 try:
                     shot = self.get_shot_by_name(sequence_id, shot_dir.name)
                     if not shot:
-                        self.logger.info(f"""새 샷 생성 중:
-                            Sequence ID: {sequence_id}
-                            이름: {shot_dir.name}
-                        """)
-                        shot_id = self.create_shot(
-                            sequence_id=sequence_id,
-                            name=shot_dir.name,
-                            status="pending"
-                        )
-                        shot_count += 1
+                        self.logger.info(f"동기화 할 샷이 없습니다.")
                     else:
                         shot_id = shot[0]
                         self.logger.debug(f"기존 샷 발견: {shot_dir.name}")
@@ -437,22 +416,7 @@ class ProjectService:
                     # 버전 생성 또는 업데이트
                     version = self.get_version_by_name(shot_id, version_num)
                     if not version:
-                        self.logger.info(f"""새 버전 생성 중:
-                            Shot ID: {shot_id}
-                            버전 이름: {version_dir.name}
-                            버전 번호: {version_num}
-                            경로: {version_dir}
-                        """)
-                        
-                        self.version_model.create(
-                            version_name=version_dir.name,
-                            shot_id=shot_id,
-                            version_number=version_num,
-                            worker_id=worker_id,
-                            file_path=str(version_dir),
-                            comment="Auto-imported from filesystem"
-                        )
-                        version_count += 1
+                        self.logger.info(f"동기화 할 버전이 없습니다.")
                     else:
                         self.logger.debug(f"이미 존재하는 버전 건너뛰기 - Shot ID: {shot_id}, 버전: {version_num}")
                         

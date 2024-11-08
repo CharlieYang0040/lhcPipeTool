@@ -2,12 +2,13 @@
 from PySide6.QtWidgets import (QTableWidget, QTableWidgetItem, QVBoxLayout, 
                                QWidget, QMessageBox, QMenu, QHeaderView, QDialog)
 from PySide6.QtCore import Qt, Signal, QEvent
-from ..services.project_version_service import ProjectVersionService
-from ..services.sequence_version_service import SequenceVersionService
-from ..services.version_service import VersionService
+from ..services.version_services import (
+    ShotVersionService, SequenceVersionService, ProjectVersionService
+)
 from ..ui.new_version_dialog import NewVersionDialog
 from ..utils.logger import setup_logger
 from ..utils.db_utils import convert_date_format
+from ..config.app_state import AppState
 import os
 
 class VersionTableWidget(QWidget):
@@ -16,10 +17,14 @@ class VersionTableWidget(QWidget):
     def __init__(self, db_connector):
         super().__init__()
         self.logger = setup_logger(__name__)
-        self.project_version_service = ProjectVersionService(db_connector)
-        self.sequence_version_service = SequenceVersionService(db_connector)
-        self.version_service = VersionService(db_connector)
-        self.new_version_dialog = NewVersionDialog(self.version_service, item_id=None, item_type="shot", parent=self)
+        self.db_connector = db_connector
+        self.version_services = {
+            "shot": ShotVersionService(db_connector, self.logger),
+            "sequence": SequenceVersionService(db_connector, self.logger),
+            "project": ProjectVersionService(db_connector, self.logger)
+        }
+        self.app_state = AppState()
+        self.new_version_dialog = NewVersionDialog(db_connector, item_id=None, item_type="shot", parent=self)
         self.setup_ui()
         
         # 테이블 선택 변경 시그널 연결
@@ -128,7 +133,7 @@ class VersionTableWidget(QWidget):
         """더블클릭 처리"""
         row = index.row()
         version_id = self.table.item(row, 0).data(Qt.UserRole)
-        version = self.version_service.get_version_details(version_id)
+        version = self.version_services[self.app_state.current_item_type].get_version_details(version_id)
         
         if version and version['file_path']:
             try:
@@ -158,9 +163,9 @@ class VersionTableWidget(QWidget):
 
     def edit_version(self, version_id):
         """버전 수정"""
-        version_details = self.version_service.get_version_details(version_id)
+        version_details = self.version_services[self.app_state.current_item_type].get_version_details(version_id)
         if version_details:
-            dialog = NewVersionDialog(self.version_service, self.current_shot_id, self)
+            dialog = NewVersionDialog(self.db_connector, self.app_state.current_item_id, self)
             dialog.worker_input.setCurrentText(version_details['worker_name'])
             dialog.file_path_input.setText(version_details['file_path'])
             dialog.preview_path_input.setText(version_details['preview_path'])
@@ -174,7 +179,7 @@ class VersionTableWidget(QWidget):
                     break
             
             if dialog.exec_() == QDialog.Accepted:
-                self.load_versions(self.current_shot_id)
+                self.load_versions(self.app_state.current_item_id, self.app_state.current_item_type)
 
     def delete_version(self, version_id):
         """버전 삭제"""
@@ -186,24 +191,21 @@ class VersionTableWidget(QWidget):
         )
         
         if reply == QMessageBox.Yes:
-            if self.version_service.delete_version(version_id):
-                self.load_versions(self.current_shot_id)
+            if self.version_services[self.app_state.current_item_type].delete_version(version_id):
+                self.load_versions(self.app_state.current_item_id, self.app_state.current_item_type)
             else:
                 QMessageBox.warning(self, "오류", "버전을 삭제하는데 실패했습니다.")
 
-    def load_versions(self, item_id, item_type):
+    def load_versions(self, item_id):
         """버전 목록 로드"""
-        self.current_item_id = item_id
-        self.table.setRowCount(0)
+        item_type = self.app_state.current_item_type
+        item_id = self.app_state.current_item_id
         
+        self.table.setRowCount(0)
+
         try:
             self.logger.debug(f"{item_type} ID {item_id}의 버전 목록 로드 시작")
-            if item_type == "project":
-                versions = self.project_version_service.get_all_versions(item_id)
-            elif item_type == "sequence":
-                versions = self.sequence_version_service.get_all_versions(item_id)
-            else:
-                versions = self.version_service.get_all_versions(item_id)
+            versions = self.version_services[item_type].get_all_versions(item_id)
             
             if not versions:
                 self.logger.debug("버전 정보가 없습니다.")
@@ -325,7 +327,7 @@ class VersionTableWidget(QWidget):
         if reply == QMessageBox.Yes:
             success = True
             for version_id in version_ids:
-                if not self.version_service.delete_version(version_id):
+                if not self.version_services[self.app_state.current_item_type].delete_version(version_id):
                     success = False
                     
             if success:

@@ -1,29 +1,41 @@
 """새 버전 생성 다이얼로그"""
+import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QApplication,
                               QPushButton, QLabel, QTextEdit, QComboBox,
                               QFileDialog, QMessageBox, QHBoxLayout,
                               QButtonGroup, QRadioButton, QWidget)
-from ..utils.logger import setup_logger
-from ..utils.preview_generator import PreviewGenerator
-import os
-from PySide6.QtCore import Qt, QEvent, QSettings, QSize
+from PySide6.QtCore import Qt, QEvent, QSettings, QSize, QTimer
 from PySide6.QtGui import QIcon, QPixmap, QImage
 
+from ..utils.logger import setup_logger
+from ..utils.preview_generator import PreviewGenerator
+from ..services.version_services import (
+    ShotVersionService, SequenceVersionService, ProjectVersionService
+)
+
 class NewVersionDialog(QDialog):
-    def __init__(self, version_service, item_id, item_type, parent=None):
+    def __init__(self, db_connector, item_id, item_type, parent=None):
         super().__init__(parent)
-        self.version_service = version_service
         self.item_id = item_id
         self.item_type = item_type
         self.logger = setup_logger(__name__)
         self.preview_generator = PreviewGenerator()
         self.settings = QSettings('LHC', 'PipeTool')
+        self.version_services = {
+            "shot": ShotVersionService(db_connector, self.logger),
+            "sequence": SequenceVersionService(db_connector, self.logger),
+            "project": ProjectVersionService(db_connector, self.logger)
+        }
+        
         self.setup_ui()
         self.load_worker_history()
         
         # 다이얼로그 클릭 이벤트 설정
         self.setFocusPolicy(Qt.ClickFocus)
         self.installEventFilter(self)
+        
+        # 레이아웃 설정 후 탭 순서 설정
+        self.setup_tab_order()
         
     def eventFilter(self, obj, event):
         """이벤트 필터"""
@@ -270,22 +282,41 @@ class NewVersionDialog(QDialog):
         self.file_path_input.setFocusPolicy(Qt.ClickFocus)
         self.preview_path_input.setFocusPolicy(Qt.ClickFocus)
         self.comment_input.setFocusPolicy(Qt.ClickFocus)
+
+    def setup_tab_order(self):
+        """탭 순서 설정"""
+        # 약간의 딜레이 후 탭 순서 설정
+        QTimer.singleShot(100, self._set_tab_order)
+
+    def _set_tab_order(self):
+        """실제 탭 순서 설정"""
+        self.worker_input.setFocusPolicy(Qt.StrongFocus)
+        self.file_path_input.setFocusPolicy(Qt.StrongFocus)
+        self.file_browse_btn.setFocusPolicy(Qt.StrongFocus)
+        self.comment_input.setFocusPolicy(Qt.StrongFocus)
+        self.create_button.setFocusPolicy(Qt.StrongFocus)
+        self.cancel_button.setFocusPolicy(Qt.StrongFocus)
         
-        # Tab 순서 설정
+        # 상태 라디오 버튼들의 포커스 정책 설정
+        for button in self.status_group.buttons():
+            button.setFocusPolicy(Qt.StrongFocus)
+        
+        # 탭 순서 설정
         self.setTabOrder(self.worker_input, self.file_path_input)
         self.setTabOrder(self.file_path_input, self.file_browse_btn)
-        self.setTabOrder(self.file_browse_btn, self.comment_input)
-        self.setTabOrder(self.comment_input, self.create_button)
-        self.setTabOrder(self.create_button, self.cancel_button)
+        self.setTabOrder(self.file_browse_btn, self.status_group.buttons()[0])
         
-        # 상태 라디오 버튼들 간의 Tab 순서 설정
+        # 라디오 버튼들 간의 탭 순서
         status_buttons = self.status_group.buttons()
         for i in range(len(status_buttons)-1):
             self.setTabOrder(status_buttons[i], status_buttons[i+1])
         
-        # 마지막 라디오 버튼에서 코멘트로 이동
+        # 마지막 라디오 버튼에서 코멘트로
         if status_buttons:
             self.setTabOrder(status_buttons[-1], self.comment_input)
+        
+        self.setTabOrder(self.comment_input, self.create_button)
+        self.setTabOrder(self.create_button, self.cancel_button)
 
     def load_worker_history(self):
         """작업자 히스토리 로드"""
@@ -373,35 +404,16 @@ class NewVersionDialog(QDialog):
         # 작업자 히스토리 저장
         self.save_worker_history(worker_name)
         
-        # TODO item_type에 따라 버전 생성
+        # 버전 생성
         self.logger.debug(f"item_type: {self.item_type}")
-        if self.item_type == "project":
-            success = self.version_service.create_version(
-                project_id=self.item_id,
-                worker_name=worker_name,
-                file_path=file_path,
-                preview_path=preview_path,
-                comment=self.comment_input.toPlainText(),
-                status=status
-            )
-        elif self.item_type == "sequence":
-            success = self.version_service.create_version(
-                sequence_id=self.item_id,
-                worker_name=worker_name,
-                file_path=file_path,
-                preview_path=preview_path,
-                comment=self.comment_input.toPlainText(),
-                status=status
-            )
-        else:  # shot
-            success = self.version_service.create_version(
-                shot_id=self.item_id,
-                worker_name=worker_name,
-                file_path=file_path,
-                preview_path=preview_path,
-                comment=self.comment_input.toPlainText(),
-                status=status
-            )
+        success = self.version_services[self.item_type].create_version(
+            item_id=self.item_id,
+            worker_name=worker_name,
+            file_path=file_path,
+            preview_path=preview_path,
+            comment=self.comment_input.toPlainText(),
+            status=status
+        )
 
         if success:
             self.accept()
