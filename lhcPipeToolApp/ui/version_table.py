@@ -1,7 +1,8 @@
 """버전 테이블 위젯"""
 from PySide6.QtWidgets import (QTableWidget, QTableWidgetItem, QVBoxLayout, 
                                QWidget, QMessageBox, QMenu, QHeaderView, QDialog, QApplication)
-from PySide6.QtCore import Qt, Signal, QEvent
+from PySide6.QtCore import Qt, Signal, QEvent, QTimer
+from PySide6.QtGui import QColor
 from ..services.version_services import (
     ShotVersionService, SequenceVersionService, ProjectVersionService
 )
@@ -82,7 +83,7 @@ class VersionTableWidget(QWidget):
         self.table.verticalHeader().setVisible(True)
         self.table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.table.verticalHeader().setDefaultSectionSize(row_height)
-        
+
         # 테이블 스타일 설정
         self.table.setStyleSheet(f"""
             QTableWidget {{
@@ -272,6 +273,7 @@ class VersionTableWidget(QWidget):
             self.table.setColumnWidth(0, 80)   # 버전
             self.table.setColumnWidth(1, 100)  # 작업자
             self.table.setColumnWidth(2, 150)  # 날짜
+            self.add_stretch_rows()  # 빈 공간 채우기
             self.logger.debug("버전 목록 로드 완료")
             
         except Exception as e:
@@ -339,3 +341,38 @@ class VersionTableWidget(QWidget):
                 self.load_versions(self.app_state.current_item_id)
             else:
                 QMessageBox.warning(self, "오류", "일부 버전을 삭제하는데 실패했습니다.")
+
+    def add_stretch_rows(self):
+        """테이블 끝까지 빈 공간을 채우는 더미 행 추가"""
+        # 현재 모든 더미 행 제거
+        for row in range(self.table.rowCount() - 1, -1, -1):
+            if self.table.item(row, 0) and self.table.item(row, 0).data(Qt.UserRole) == -1:
+                self.table.removeRow(row)
+        
+        # 테이블 뷰포트의 높이 계산
+        viewport_height = self.table.viewport().height()
+        header_height = self.table.horizontalHeader().height()
+        row_height = self.table.rowHeight(0) if self.table.rowCount() > 0 else 25
+        
+        # 현재 데이터 행이 차지하는 전체 높이
+        total_data_height = sum(self.table.rowHeight(row) for row in range(self.table.rowCount()))
+        
+        # 필요한 더미 행 수 계산
+        remaining_height = viewport_height - total_data_height
+        dummy_rows_needed = max(0, remaining_height // row_height)
+        
+        # 더미 행 추가
+        for _ in range(dummy_rows_needed):
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            for col in range(self.table.columnCount()):
+                item = QTableWidgetItem()
+                item.setFlags(Qt.NoItemFlags)  # 선택/편집 불가
+                item.setData(Qt.UserRole, -1)  # 더미 행 표시용 특수 ID
+                item.setBackground(QColor("#15151e"))
+                self.table.setItem(row, col, item)
+
+    def resizeEvent(self, event):
+        """테이블 크기 변경 시 더미 행 업데이트"""
+        super().resizeEvent(event)
+        QTimer.singleShot(0, self.add_stretch_rows)  # 지연 실행으로 레이아웃 업데이트 후 처리

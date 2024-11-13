@@ -116,9 +116,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter)
         
         # 스플리터 비율 설정
-        splitter.setStretchFactor(0, 2)  # 프로젝트 트리
+        splitter.setStretchFactor(1, 2)  # 프로젝트 트리
         splitter.setStretchFactor(1, 2)  # 버전 테이블
-        splitter.setStretchFactor(2, 1)  # 상세 정보 패널
+        splitter.setStretchFactor(1, 2)  # 상세 정보 패널
         
         # 프로젝트 트리
         self.project_tree = ProjectTreeWidget(self.db_connector)
