@@ -1,5 +1,5 @@
 """프로젝트 트리 위젯"""
-from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QMessageBox
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QMessageBox, QApplication
 from PySide6.QtCore import Signal, Qt, QSize, QEvent
 from ..services.project_service import ProjectService
 from ..services.version_services import (
@@ -40,8 +40,23 @@ class ProjectTreeWidget(QTreeWidget):
         """UI 초기화"""
         self.setHeaderLabels(["Project Structure"])
         self.setColumnCount(1)
-        self.setIndentation(24)
-        self.setIconSize(QSize(20, 20))
+        
+        # 화면 해상도에 따른 크기 조정
+        screen = QApplication.primaryScreen()
+        scale_factor = screen.logicalDotsPerInch() / 96
+        
+        # 들여쓰기 크기 조정
+        indentation = int(24 * scale_factor)
+        self.setIndentation(indentation)
+        
+        # 아이콘 크기 조정
+        icon_size = int(20 * scale_factor)
+        self.setIconSize(QSize(icon_size, icon_size))
+        
+        # 트리 너비 조정
+        tree_width = int(400 * scale_factor)
+        self.setColumnWidth(0, tree_width)
+        
         self.base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
         arrow_right = os.path.join(self.base_path, 'lhcPipeToolApp', 'resources', 'icons', 'ue-arrow-right.svg')
@@ -123,7 +138,6 @@ class ProjectTreeWidget(QTreeWidget):
             }}
         """)
         
-        self.setColumnWidth(0, 400)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.itemClicked.connect(self.handle_item_click)
@@ -142,9 +156,11 @@ class ProjectTreeWidget(QTreeWidget):
             self.setSelectionMode(QTreeWidget.ExtendedSelection)
 
             for project in projects:
+                latest_version = self.version_services["project"].get_latest_version(project[0])
+                preview_path = latest_version[7] if latest_version else None
                 project_item = QTreeWidgetItem([""])
                 project_item.setData(0, Qt.UserRole, ("project", project[0]))
-                project_widget = CustomTreeItemWidget(project[1], "project")
+                project_widget = CustomTreeItemWidget(project[1], "project", preview_path)
                 self.addTopLevelItem(project_item)
                 self.setItemWidget(project_item, 0, project_widget)
                 
@@ -157,9 +173,11 @@ class ProjectTreeWidget(QTreeWidget):
                 sequences = cursor.fetchall()
                 
                 for sequence in sequences:
+                    latest_version = self.version_services["sequence"].get_latest_version(sequence[0])
+                    preview_path = latest_version[7] if latest_version else None
                     seq_item = QTreeWidgetItem([""])
                     seq_item.setData(0, Qt.UserRole, ("sequence", sequence[0]))
-                    seq_widget = CustomTreeItemWidget(sequence[1], "sequence")
+                    seq_widget = CustomTreeItemWidget(sequence[1], "sequence", preview_path)
                     project_item.addChild(seq_item)
                     self.setItemWidget(seq_item, 0, seq_widget)
                     

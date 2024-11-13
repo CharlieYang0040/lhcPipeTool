@@ -1,7 +1,7 @@
 """메인 윈도우"""
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
-    QDialog, QMessageBox, QToolBar, QStyle
+    QDialog, QMessageBox, QToolBar, QStyle, QApplication
 )
 from .project_tree import ProjectTreeWidget
 from .version_table import VersionTableWidget
@@ -10,9 +10,7 @@ from ..services.project_service import ProjectService
 from ..services.worker_service import WorkerService
 from ..services.refresh_service import RefreshService
 from ..services.database_service import DatabaseService
-from ..services.version_services import (
-    ShotVersionService, SequenceVersionService, ProjectVersionService
-)
+from ..services.version_services import (ShotVersionService, SequenceVersionService, ProjectVersionService)
 
 from ..database.table_manager import TableManager
 from ..utils.logger import setup_logger
@@ -49,8 +47,22 @@ class MainWindow(QMainWindow):
         
     def init_ui(self):
         """UI 초기화"""
+        # 화면 정보 가져오기
+        screen = QApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+        
+        # 윈도우 크기 계산 (화면 크기의 75%)
+        window_width = int(screen_width * 0.60)
+        window_height = int(screen_height * 0.75)
+        
+        # 윈도우 위치 계산 (화면 중앙)
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        
         self.setWindowTitle("Pipeline Tool")
-        self.setGeometry(100, 100, 1600, 800)
+        self.setGeometry(x, y, window_width, window_height)
         
         # 메인 위젯 및 레이아웃
         main_widget = QWidget()
@@ -102,6 +114,11 @@ class MainWindow(QMainWindow):
         # 스플리터 생성
         splitter = QSplitter()
         layout.addWidget(splitter)
+        
+        # 스플리터 비율 설정
+        splitter.setStretchFactor(0, 2)  # 프로젝트 트리
+        splitter.setStretchFactor(1, 2)  # 버전 테이블
+        splitter.setStretchFactor(2, 1)  # 상세 정보 패널
         
         # 프로젝트 트리
         self.project_tree = ProjectTreeWidget(self.db_connector)
@@ -261,7 +278,7 @@ class MainWindow(QMainWindow):
 
     def handle_version_selection(self, version_id):
         """버전테이블에서 버전 선택 처리"""
-        self.detail_panel.show_version_details(version_id)
+        self.detail_panel._show_version_fields(version_id)
 
     def handle_item_type_changed(self, item_type, item_id):
         """아이템 타입 변경 처리"""

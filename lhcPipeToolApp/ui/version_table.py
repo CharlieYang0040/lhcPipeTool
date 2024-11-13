@@ -1,6 +1,6 @@
 """버전 테이블 위젯"""
 from PySide6.QtWidgets import (QTableWidget, QTableWidgetItem, QVBoxLayout, 
-                               QWidget, QMessageBox, QMenu, QHeaderView, QDialog)
+                               QWidget, QMessageBox, QMenu, QHeaderView, QDialog, QApplication)
 from PySide6.QtCore import Qt, Signal, QEvent
 from ..services.version_services import (
     ShotVersionService, SequenceVersionService, ProjectVersionService
@@ -25,6 +25,9 @@ class VersionTableWidget(QWidget):
         }
         self.app_state = AppState()
         self.new_version_dialog = NewVersionDialog(db_connector, item_id=None, item_type="shot", parent=self)
+        
+        # 화면 해상도에 따른 스케일 팩터 계산
+        self.scale_factor = self.calculate_scale_factor()
         self.setup_ui()
         
         # 테이블 선택 변경 시그널 연결
@@ -35,6 +38,12 @@ class VersionTableWidget(QWidget):
         self.table.doubleClicked.connect(self.handle_double_click)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
+
+    def calculate_scale_factor(self):
+        """화면 해상도에 따른 스케일 팩터 계산"""
+        screen = QApplication.primaryScreen()
+        dpi = screen.logicalDotsPerInch()
+        return dpi / 96
 
     def setup_ui(self):
         """UI 초기화"""
@@ -51,42 +60,48 @@ class VersionTableWidget(QWidget):
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         
+        # 해상도에 따른 폰트 크기 조정
+        font_size = int(13 * self.scale_factor)
+        row_height = int(36 * self.scale_factor)
+        header_height = int(42 * self.scale_factor)
+        
         # 수평 헤더 설정
         header = self.table.horizontalHeader()
+        header.setMinimumHeight(header_height)
         header.setSectionResizeMode(0, QHeaderView.Interactive)  # 버전 컬럼
         header.setSectionResizeMode(1, QHeaderView.Interactive)  # 작업자 컬럼
         header.setSectionResizeMode(2, QHeaderView.Interactive)  # 날짜 컬럼
         header.setSectionResizeMode(3, QHeaderView.Stretch)     # 상태 컬럼
         
+        # 초기 컬럼 너비 설정
+        self.table.setColumnWidth(0, int(80 * self.scale_factor))   # 버전
+        self.table.setColumnWidth(1, int(100 * self.scale_factor))  # 작업자
+        self.table.setColumnWidth(2, int(150 * self.scale_factor))  # 날짜
+        
         # 수직 헤더 설정
-        self.table.verticalHeader().setVisible(True)  # 수직 헤더 표시
+        self.table.verticalHeader().setVisible(True)
         self.table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.table.verticalHeader().setDefaultSectionSize(36)  # 행 높이 설정
+        self.table.verticalHeader().setDefaultSectionSize(row_height)
         
         # 테이블 스타일 설정
-        self.table.setStyleSheet("""
-            QTableWidget {
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
                 background-color: #15151e;
                 border: none;
                 outline: none;
                 gridline-color: #2d2d3d;
-            }
+            }}
             
-            QTableWidget::item {
+            QTableWidget::item {{
                 padding: 8px;
                 border-bottom: 1px solid #2d2d3d;
                 border-right: 1px solid #2d2d3d;
                 color: #e0e0e0;
                 font-family: 'Segoe UI';
-                font-size: 14px;
-            }
+                font-size: {font_size}px;
+            }}
             
-            /* 헤더 공통 스타일 */
-            QHeaderView {
-                background-color: #1a1a24;
-            }
-            
-            QHeaderView::section {
+            QHeaderView::section {{
                 background-color: #1a1a24;
                 padding: 8px;
                 border: none;
@@ -95,45 +110,35 @@ class VersionTableWidget(QWidget):
                 color: #e0e0e0;
                 font-family: 'Segoe UI';
                 font-weight: 500;
-                font-size: 14px;
-            }
+                font-size: {font_size}px;
+            }}
             
-            /* 수직 헤더 특별 스타일 */
-            QHeaderView::section:vertical {
-                width: 30px;
-                background-color: #1a1a24;
-                border-right: 1px solid #2d2d3d;
-            }
-            
-            /* 코너 위젯 스타일 */
-            QTableCornerButton::section {
-                background-color: #1a1a24;
+            /* 코너 위젯 스타일 수정 */
+            QTableCornerButton::section {{
+                background-color: #1a1a24;  /* 테이블의 기본 배경색과 동일하게 설정 */
                 border: none;
                 border-bottom: 1px solid #2d2d3d;
                 border-right: 1px solid #2d2d3d;
-            }
+            }}
             
             /* 선택 스타일 */
-            QTableWidget::item:selected {
+            QTableWidget::item:selected {{
                 background-color: #2d2d3d;
                 color: #ffffff;
-            }
+            }}
             
-            QTableWidget::item:hover:!selected {
+            QTableWidget::item:hover:!selected {{
                 background-color: #1f1f2c;
-            }
+            }}
         """)
-
-        # 키보드 이벤트 처리를 위한 이벤트 필터 설치
-        self.table.installEventFilter(self)
 
         layout.addWidget(self.table)
 
     def handle_double_click(self, index):
         """더블클릭 처리"""
         row = index.row()
-        version_id = self.table.item(row, 0).data(Qt.UserRole)
-        version = self.version_services[self.app_state.current_item_type].get_version_details(version_id)
+        item_id = self.table.item(row, 0).data(Qt.UserRole)
+        version = self.version_services[self.app_state.current_item_type].get_version_details(item_id)
         
         if version and version['file_path']:
             try:
@@ -147,25 +152,25 @@ class VersionTableWidget(QWidget):
         item = self.table.itemAt(pos)
         if item:
             menu = QMenu(self)
-            edit_action = menu.addAction("수정")
+            edit_action = menu.addAction("수정 및 재등록")
             menu.addSeparator()
             delete_action = menu.addAction("버전 삭제")
             
             action = menu.exec_(self.table.viewport().mapToGlobal(pos))
             if action == delete_action:
                 row = item.row()
-                version_id = self.table.item(row, 0).data(Qt.UserRole)
-                self.delete_version(version_id)
+                item_id = self.table.item(row, 0).data(Qt.UserRole)
+                self.delete_version(item_id)
             elif action == edit_action:
                 row = item.row()
-                version_id = self.table.item(row, 0).data(Qt.UserRole)
-                self.edit_version(version_id)
+                item_id = self.table.item(row, 0).data(Qt.UserRole)
+                self.edit_version(item_id)
 
-    def edit_version(self, version_id):
+    def edit_version(self, item_id):
         """버전 수정"""
-        version_details = self.version_services[self.app_state.current_item_type].get_version_details(version_id)
+        version_details = self.version_services[self.app_state.current_item_type].get_version_details(item_id)
         if version_details:
-            dialog = NewVersionDialog(self.db_connector, self.app_state.current_item_id, self)
+            dialog = NewVersionDialog(self.db_connector, self.app_state.current_item_id, self.app_state.current_item_type, parent=self)
             dialog.worker_input.setCurrentText(version_details['worker_name'])
             dialog.file_path_input.setText(version_details['file_path'])
             dialog.preview_path_input.setText(version_details['preview_path'])
@@ -179,9 +184,9 @@ class VersionTableWidget(QWidget):
                     break
             
             if dialog.exec_() == QDialog.Accepted:
-                self.load_versions(self.app_state.current_item_id, self.app_state.current_item_type)
+                self.load_versions(self.app_state.current_item_id)
 
-    def delete_version(self, version_id):
+    def delete_version(self, item_id):
         """버전 삭제"""
         reply = QMessageBox.question(
             self, 
@@ -191,8 +196,8 @@ class VersionTableWidget(QWidget):
         )
         
         if reply == QMessageBox.Yes:
-            if self.version_services[self.app_state.current_item_type].delete_version(version_id):
-                self.load_versions(self.app_state.current_item_id, self.app_state.current_item_type)
+            if self.version_services[self.app_state.current_item_type].delete_version(item_id):
+                self.load_versions(self.app_state.current_item_id)
             else:
                 QMessageBox.warning(self, "오류", "버전을 삭제하는데 실패했습니다.")
 
@@ -331,6 +336,6 @@ class VersionTableWidget(QWidget):
                     success = False
                     
             if success:
-                self.load_versions(self.current_shot_id)
+                self.load_versions(self.app_state.current_item_id)
             else:
                 QMessageBox.warning(self, "오류", "일부 버전을 삭제하는데 실패했습니다.")

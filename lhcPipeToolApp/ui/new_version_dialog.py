@@ -9,6 +9,7 @@ from PySide6.QtGui import QIcon, QPixmap, QImage
 
 from ..utils.logger import setup_logger
 from ..utils.preview_generator import PreviewGenerator
+from ..services.project_service import ProjectService
 from ..services.version_services import (
     ShotVersionService, SequenceVersionService, ProjectVersionService
 )
@@ -21,6 +22,7 @@ class NewVersionDialog(QDialog):
         self.logger = setup_logger(__name__)
         self.preview_generator = PreviewGenerator()
         self.settings = QSettings('LHC', 'PipeTool')
+        self.project_service = ProjectService(db_connector)
         self.version_services = {
             "shot": ShotVersionService(db_connector, self.logger),
             "sequence": SequenceVersionService(db_connector, self.logger),
@@ -408,6 +410,7 @@ class NewVersionDialog(QDialog):
         self.logger.debug(f"item_type: {self.item_type}")
         success = self.version_services[self.item_type].create_version(
             item_id=self.item_id,
+            version_number=None,
             worker_name=worker_name,
             file_path=file_path,
             preview_path=preview_path,

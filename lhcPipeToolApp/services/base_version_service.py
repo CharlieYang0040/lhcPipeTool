@@ -1,7 +1,6 @@
 """버전 서비스 기본 클래스"""
 from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
 from ..models.worker import Worker
-from ..utils.logger import setup_logger
 from ..utils.db_utils import convert_date_format
 
 class BaseVersionService:
@@ -109,6 +108,123 @@ class BaseVersionService:
         except Exception as e:
             self.logger.error(f"버전 조회 중 오류 발생: {str(e)}", exc_info=True)
             return []
+
+    def get_project_details(self, project_id):
+        """프로젝트 상세 정보 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            query = """
+                SELECT p.*,
+                       (SELECT COUNT(*) FROM PROJECT_VERSIONS 
+                        WHERE project_id = p.id) as version_count,
+                       (SELECT FIRST 1 preview_path FROM PROJECT_VERSIONS 
+                        WHERE project_id = p.id 
+                        ORDER BY created_at DESC) as latest_preview
+                FROM PROJECTS p
+                WHERE p.id = ?
+            """
+            cursor.execute(query, (project_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None
+                
+            return {
+                'id': result[0],
+                'name': result[1],
+                'path': result[2],
+                'description': result[3],
+                'created_at': convert_date_format(result[4]),
+                'version_count': result[5],
+                'preview_path': result[6]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"프로젝트 상세 정보 조회 실패: {str(e)}", exc_info=True)
+            return None
+
+    def get_sequence_details(self, sequence_id):
+        """시퀀스 상세 정보 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            query = """
+                SELECT s.id, s.name, s.project_id, s.level_path, s.description, s.created_at,
+                    p.name as project_name,
+                    (SELECT COUNT(*) FROM SHOTS 
+                        WHERE sequence_id = s.id) as shot_count,
+                    (SELECT FIRST 1 preview_path FROM SEQUENCE_VERSIONS 
+                        WHERE sequence_id = s.id 
+                        ORDER BY created_at DESC) as latest_preview
+                FROM SEQUENCES s
+                JOIN PROJECTS p ON s.project_id = p.id
+                WHERE s.id = ?
+            """
+            cursor.execute(query, (sequence_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None
+                
+            return {
+                'id': result[0],
+                'name': result[1],
+                'project_id': result[2],
+                'level_path': result[3],
+                'description': result[4],
+                'created_at': convert_date_format(result[5]),
+                'project_name': result[6],
+                'shot_count': result[7],
+                'preview_path': result[8]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"시퀀스 상세 정보 조회 실패: {str(e)}", exc_info=True)
+            return None
+
+
+    def get_shot_details(self, shot_id):
+        """샷 상세 정보 조회"""
+        try:
+            cursor = self.connector.cursor()
+            
+            query = """
+                SELECT sh.*,
+                       s.name as sequence_name,
+                       p.name as project_name,
+                       (SELECT COUNT(*) FROM VERSIONS 
+                        WHERE shot_id = sh.id) as version_count,
+                       (SELECT FIRST 1 preview_path FROM VERSIONS 
+                        WHERE shot_id = sh.id 
+                        ORDER BY created_at DESC) as latest_preview
+                FROM SHOTS sh
+                JOIN SEQUENCES s ON sh.sequence_id = s.id
+                JOIN PROJECTS p ON s.project_id = p.id
+                WHERE sh.id = ?
+            """
+            cursor.execute(query, (shot_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None
+                
+            return {
+                'id': result[0],
+                'name': result[1],
+                'sequence_id': result[2],
+                'status': result[3],
+                'description': result[4],
+                'created_at': convert_date_format(result[5]),
+                'sequence_name': result[6],
+                'project_name': result[7],
+                'version_count': result[8],
+                'preview_path': result[9]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"샷 상세 정보 조회 실패: {str(e)}", exc_info=True)
+            return None
 
     def get_version_details(self, version_id):
         """버전 상세 정보 조회"""

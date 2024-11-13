@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 from ..services.project_service import ProjectService
-from ..services.version_service import VersionService
+from ..services.version_services import (ProjectVersionService, SequenceVersionService, ShotVersionService)
 from ..database.table_manager import TableManager
 from ..utils.logger import setup_logger
 
@@ -20,7 +20,11 @@ class SettingsDialog(QDialog):
         self.load_settings()
         self.setup_ui()
         self.project_service = ProjectService(self.db_connector)
-        self.version_service = VersionService(self.db_connector)
+        self.version_services = {
+            "project": ProjectVersionService(self.db_connector),
+            "sequence": SequenceVersionService(self.db_connector),
+            "shot": ShotVersionService(self.db_connector)
+        }
         self.table_manager = TableManager(self.db_connector)
     def setup_ui(self):
         self.setWindowTitle("Settings")
@@ -253,7 +257,7 @@ class SettingsDialog(QDialog):
                 
                 # 버전 생성
                 for version in shot['versions']:
-                    self.version_service.create_version(
+                    self.project_service.create_version(
                         shot_id=shot_id,
                         version_number=version['number'],
                         file_path=version['path'],
