@@ -296,7 +296,16 @@ class VersionTableWidget(QWidget):
             return
             
         row = selected_items[0].row()
-        version_id = self.table.item(row, 0).data(Qt.UserRole)
+        item = self.table.item(row, 0)
+        
+        # 더미 아이템 체크
+        if item and item.data(Qt.UserRole) == -1:
+            self.logger.debug("더미 아이템 선택됨, 시그널 발생: -1")
+            self.table.clearSelection()  # 선택 해제
+            self.version_selected.emit(-1)
+            return
+            
+        version_id = item.data(Qt.UserRole)
         self.logger.debug(f"선택된 버전 ID: {version_id}")
         self.version_selected.emit(version_id)
 

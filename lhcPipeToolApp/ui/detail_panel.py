@@ -191,6 +191,9 @@ class DetailPanel(QWidget):
                         for btn_text in field_props['buttons']:
                             icon = "📋" if btn_text == "복사" else "📁"
                             btn = self._create_action_button(icon)
+                            # 버튼에 field_widget 참조 전달
+                            btn.clicked.connect(lambda checked, w=field_widget, t=btn_text: 
+                                self._handle_button_click(w, t))
                             input_container.addWidget(btn)
                     
                     field_container.layout().addLayout(input_container)
@@ -415,6 +418,10 @@ class DetailPanel(QWidget):
         try:
             self.logger.debug(f"버전 상세 정보 표시 시작 - version_id: {version_id}")
             
+            if version_id == -1:
+                self.logger.debug("버전 선택 안됨")
+                return
+
             # 버전 데이터 로드
             version = self.version_services[self.app_state.current_item_type].get_version_details(version_id)
             self.logger.debug(f"로드된 버전 데이터: {version}")
@@ -523,6 +530,26 @@ class DetailPanel(QWidget):
             )
             self.preview_label.setPixmap(scaled_pixmap)
 
+    def _handle_button_click(self, field_widget, button_type):
+        """버튼 클릭 이벤트 처리"""
+        try:
+            path = field_widget.text()
+            
+            if not path:
+                QMessageBox.warning(self, "경고", "경로가 비어있습니다.")
+                return
+                
+            if button_type == "복사":
+                self.copy_to_clipboard(path)
+                self.logger.debug(f"클립보드에 복사됨: {path}")
+            elif button_type == "열기":
+                self.open_folder(path)
+                self.logger.debug(f"폴더 열기: {path}")
+                
+        except Exception as e:
+            self.logger.error(f"버튼 클릭 처리 실패: {str(e)}")
+            QMessageBox.warning(self, "오류", f"작업 실패: {str(e)}")
+
     def open_folder(self, path):
         """경로를 탐색기에서 엽니다."""
         if os.path.isfile(path):
@@ -553,7 +580,7 @@ class DetailPanel(QWidget):
         """아이템 정보 초기화"""
         self.preview_label.clear()
         self.preview_label.setText("프리뷰 없음")
-        self.original_pixmap = None  # 원��� 이미지도 초기화
+        self.original_pixmap = None  # 원본 이미지도 초기화
         
         # 모든 타입의 모든 필드 초기화
         for type_fields in self.type_fields.values():

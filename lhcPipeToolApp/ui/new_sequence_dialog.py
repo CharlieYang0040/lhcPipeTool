@@ -1,58 +1,156 @@
 """시퀀스 생성/편집 다이얼로그"""
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
-                              QPushButton, QLabel, QMessageBox)
+                              QPushButton, QLabel, QMessageBox,
+                              QHBoxLayout, QTextEdit)
+from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QIcon, QPixmap, QImage
 
 class NewSequenceDialog(QDialog):
     def __init__(self, project_service, project_id, project_tree, sequence=None, parent=None):
         super().__init__(parent)
         self.project_service = project_service
         self.project_id = project_id
-        self.sequence = sequence  # 편집 모드일 경우 기존 시퀀스 정보
-        self.project_tree = project_tree  # 프로젝트 트리 참조 저장
+        self.sequence = sequence
+        self.project_tree = project_tree
         self.setup_ui()
+        self.setup_tab_order()
         
     def setup_ui(self):
-        self.setWindowTitle("New Sequence" if not self.sequence else "Edit Sequence")
+        self.setWindowTitle("새 시퀀스 생성" if not self.sequence else "시퀀스 편집")
+        self.setMinimumWidth(400)
         layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # 스타일 설정
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #15151e;
+            }
+            QLabel {
+                color: #e0e0e0;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+            }
+            QLineEdit, QTextEdit {
+                background-color: #1a1a24;
+                border: 1px solid #2d2d3d;
+                border-radius: 4px;
+                color: #e0e0e0;
+                padding: 5px;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #2d2d3d;
+                border: none;
+                border-radius: 4px;
+                color: #e0e0e0;
+                padding: 8px;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #363647;
+            }
+            QPushButton:pressed {
+                background-color: #404052;
+            }
+        """)
         
         # 시퀀스 이름 입력
+        name_layout = QVBoxLayout()
+        name_layout.setSpacing(5)
+        name_label = QLabel("시퀀스 이름:")
         self.name_input = QLineEdit()
         if self.sequence:
-            self.name_input.setText(self.sequence[1])  # sequence name
-        layout.addWidget(QLabel("Sequence Name:"))
-        layout.addWidget(self.name_input)
+            self.name_input.setText(self.sequence[1])
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(self.name_input)
+        layout.addLayout(name_layout)
+
+        # 레벨 경로 입력
+        level_layout = QVBoxLayout()
+        level_layout.setSpacing(5)
+        level_label = QLabel("레벨 경로:")
+        self.level_input = QLineEdit()
+        if self.sequence:
+            self.level_input.setText(self.sequence[2])
+        level_layout.addWidget(level_label)
+        level_layout.addWidget(self.level_input)
+        layout.addLayout(level_layout)
         
-        # 확인/취소 버튼
-        self.save_button = QPushButton("Save")
+        # 설명 입력
+        desc_layout = QVBoxLayout()
+        desc_layout.setSpacing(5)
+        desc_label = QLabel("설명:")
+        self.description_input = QTextEdit()
+        self.description_input.setMinimumHeight(80)
+        self.description_input.setMaximumHeight(120)
+        if self.sequence:
+            self.description_input.setText(self.sequence[3])
+        desc_layout.addWidget(desc_label)
+        desc_layout.addWidget(self.description_input)
+        layout.addLayout(desc_layout)
+
+        # 버튼 레이아웃
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        
+        self.save_button = QPushButton("저장")
+        self.save_button.setMinimumWidth(100)
         self.save_button.clicked.connect(self.save_sequence)
-        self.cancel_button = QPushButton("Cancel")
+        
+        self.cancel_button = QPushButton("취소")
+        self.cancel_button.setMinimumWidth(100)
         self.cancel_button.clicked.connect(self.reject)
         
-        layout.addWidget(self.save_button)
-        layout.addWidget(self.cancel_button)
+        button_layout.addStretch()
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+        
+    def setup_tab_order(self):
+        """탭 순서 설정"""
+        QTimer.singleShot(100, self._set_tab_order)
+
+    def _set_tab_order(self):
+        """실제 탭 순서 설정"""
+        self.name_input.setFocusPolicy(Qt.StrongFocus)
+        self.level_input.setFocusPolicy(Qt.StrongFocus)
+        self.description_input.setFocusPolicy(Qt.StrongFocus)
+        self.save_button.setFocusPolicy(Qt.StrongFocus)
+        self.cancel_button.setFocusPolicy(Qt.StrongFocus)
+        
+        self.setTabOrder(self.name_input, self.level_input)
+        self.setTabOrder(self.level_input, self.description_input)
+        self.setTabOrder(self.description_input, self.save_button)
+        self.setTabOrder(self.save_button, self.cancel_button)
         
     def save_sequence(self):
         name = self.name_input.text().strip()
         if not name:
-            QMessageBox.warning(self, "Warning", "Sequence name is required!")
+            QMessageBox.warning(self, "경고", "시퀀스 이름을 입력해주세요!")
             return
             
         if self.sequence:
-            # 편집 모드
             success = self.project_service.update_sequence(
-                self.sequence[0], name
+                self.sequence[0],
+                name,
+                self.level_input.text().strip(),
+                self.description_input.toPlainText().strip()
             )
         else:
-            # 새로 생성
             success = self.project_service.create_sequence(
-                self.project_id, name
+                self.project_id,
+                name, 
+                self.level_input.text().strip(),
+                self.description_input.toPlainText().strip()
             )
             
         if success:
-            self.project_tree.refresh()  # 프로젝트 트리 새로고침
+            self.project_tree.refresh()
             self.accept()
         else:
-            QMessageBox.critical(
-                self, "Error", 
-                "Failed to save sequence!"
-            )
+            QMessageBox.critical(self, "오류", "시퀀스 저장에 실패했습니다!")

@@ -7,6 +7,8 @@ from ..services.version_services import (
 )
 from ..utils.logger import setup_logger
 from .project_tree_item import CustomTreeItemWidget
+from .new_shot_dialog import NewShotDialog
+from .new_sequence_dialog import NewSequenceDialog
 from .new_version_dialog import NewVersionDialog
 from ..utils.event_system import EventSystem
 from ..config.app_state import AppState
@@ -219,6 +221,11 @@ class ProjectTreeWidget(QTreeWidget):
         menu = QMenu()
         item = self.itemAt(position)
         
+        if not item:
+            menu.addAction("새 프로젝트 추가", lambda: self.add_project())
+            menu.exec_(self.viewport().mapToGlobal(position))
+            return
+
         if item:
             item_type, item_id = item.data(0, Qt.UserRole)
             
@@ -236,34 +243,54 @@ class ProjectTreeWidget(QTreeWidget):
                 
             menu.exec_(self.viewport().mapToGlobal(position))
 
+    def add_project(self):
+        """프로젝트 추가"""
+        try:
+            name, ok = QInputDialog.getText(self, "새 프로젝트 추가", "프로젝트 이름을 입력하세요")
+            if ok and name:
+                if self.project_service.create_project(name):
+                    self.refresh()
+                else:
+                    QMessageBox.critical(self, "오류", "프로젝트 추가 실패")
+        except Exception as e:
+            self.logger.error(f"프로젝트 추가 실패: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "오류", f"프로젝트 추가 실패: {str(e)}")
+
     def add_sequence(self, parent_item, project_id):
         """시퀀스 추가"""
-        name, ok = QInputDialog.getText(self, "시퀀스 추가", "시퀀스 이름을 입력하세요:")
-        if ok and name:
-            # 이름 유효성 검사 추가
-            if len(name) > 100:  # 데이터베이스 필드 길이에 맞춰 조정
-                QMessageBox.warning(self, "경고", "시퀀스 이름이 너무 깁니다.")
-                return
+        try:
+            dialog = NewSequenceDialog(self.project_service, project_id, self)
+            
+            if dialog.exec_():
+                self.logger.info("새 시퀀스 생성 성공")
+                self.refresh()
+                return True
                 
-            try:
-                sequence_id = self.project_service.create_sequence(project_id, name.strip())
-                if sequence_id:
-                    self.refresh()
-            except Exception as e:
-                self.logger.error(f"시퀀스 추가 실패: {str(e)}", exc_info=True)
-                QMessageBox.critical(self, "오류", f"시퀀스 추가 실패: {str(e)}")
+            self.logger.debug("시퀀스 생성 취소됨")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"시퀀스 추가 실패: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "오류", f"시퀀스 추가 실패: {str(e)}")
+            return False
 
     def add_shot(self, parent_item, sequence_id):
         """샷 추가"""
-        name, ok = QInputDialog.getText(self, "샷 추가", "샷 이름을 입력하세요:")
-        if ok and name:
-            try:
-                shot_id = self.project_service.create_shot(sequence_id, name)
-                if shot_id:
-                    self.refresh()
-            except Exception as e:
-                self.logger.error(f"샷 추가 실패: {str(e)}", exc_info=True)
-                QMessageBox.critical(self, "오류", f"샷 추가 실패: {str(e)}")
+        try:
+            dialog = NewShotDialog(self.project_service, sequence_id, self)
+            
+            if dialog.exec_():
+                self.logger.info("새 샷 생성 성공")
+                self.refresh()
+                return True
+                
+            self.logger.debug("샷 생성 취소됨")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"샷 추가 실패: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "오류", f"샷 추가 실패: {str(e)}")
+            return False
 
     def add_version(self, parent_item, item_type, item_id):
         """버전 추가"""
