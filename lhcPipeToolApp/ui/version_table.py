@@ -1,4 +1,5 @@
 """버전 테이블 위젯"""
+import os
 from PySide6.QtWidgets import (QTableWidget, QTableWidgetItem, QVBoxLayout, 
                                QWidget, QMessageBox, QMenu, QHeaderView, QDialog, QApplication)
 from PySide6.QtCore import Qt, Signal, QEvent, QTimer
@@ -10,7 +11,7 @@ from ..ui.new_version_dialog import NewVersionDialog
 from ..utils.logger import setup_logger
 from ..utils.db_utils import convert_date_format
 from ..config.app_state import AppState
-import os
+from ..styles.components import get_table_style
 
 class VersionTableWidget(QWidget):
     version_selected = Signal(int)
@@ -85,53 +86,7 @@ class VersionTableWidget(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(row_height)
 
         # 테이블 스타일 설정
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: #15151e;
-                border: none;
-                outline: none;
-                gridline-color: #2d2d3d;
-            }}
-            
-            QTableWidget::item {{
-                padding: 8px;
-                border-bottom: 1px solid #2d2d3d;
-                border-right: 1px solid #2d2d3d;
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: {font_size}px;
-            }}
-            
-            QHeaderView::section {{
-                background-color: #1a1a24;
-                padding: 8px;
-                border: none;
-                border-bottom: 1px solid #2d2d3d;
-                border-right: 1px solid #2d2d3d;
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-weight: 500;
-                font-size: {font_size}px;
-            }}
-            
-            /* 코너 위젯 스타일 수정 */
-            QTableCornerButton::section {{
-                background-color: #1a1a24;  /* 테이블의 기본 배경색과 동일하게 설정 */
-                border: none;
-                border-bottom: 1px solid #2d2d3d;
-                border-right: 1px solid #2d2d3d;
-            }}
-            
-            /* 선택 스타일 */
-            QTableWidget::item:selected {{
-                background-color: #2d2d3d;
-                color: #ffffff;
-            }}
-            
-            QTableWidget::item:hover:!selected {{
-                background-color: #1f1f2c;
-            }}
-        """)
+        self.table.setStyleSheet(get_table_style())
 
         layout.addWidget(self.table)
 
@@ -281,9 +236,19 @@ class VersionTableWidget(QWidget):
 
     def clear_versions(self):
         """버전 테이블 초기화"""
-        self.table.setRowCount(0)
-        self.current_shot_id = None  # 현재 선택된 샷 ID 초기화
-        self.version_selected.emit(-1)  # 버전 선택 해제 시그널 생
+        row_count = 1  # 최소 1행은 표시
+        self.table.setRowCount(row_count)
+        
+        # 수직 헤더 설정 유지
+        for row in range(row_count):
+            self.table.setVerticalHeaderItem(row, QTableWidgetItem(str(row + 1)))
+            # 빈 셀 설정
+            for col in range(self.table.columnCount()):
+                self.table.setItem(row, col, QTableWidgetItem(""))
+        
+        self.current_shot_id = None
+        self.version_selected.emit(-1)
+        self.add_stretch_rows()  # 남은 공간 채우기
 
     def handle_selection_changed(self):
         """테이블 선택 변경 처리"""

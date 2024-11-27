@@ -120,8 +120,8 @@ class DetailPanel(QWidget):
         item_frame = QFrame()
         item_frame.setStyleSheet(get_frame_style())
         item_frame_layout = QVBoxLayout(item_frame)
-        item_frame_layout.setContentsMargins(15, 15, 15, 15)
-        item_frame_layout.setSpacing(10)
+        item_frame_layout.setContentsMargins(5, 5, 5, 5)
+        item_frame_layout.setSpacing(5)
 
         # 프리뷰 레이블을 위한 컨테이너
         preview_container = QWidget()
@@ -277,6 +277,9 @@ class DetailPanel(QWidget):
             if project.get('preview_path'):
                 self._show_preview(project['preview_path'])
             else:
+                self.preview_label.clear()
+                self.preview_label.setPixmap(QPixmap())
+                self.original_pixmap = None  # 원본 이미지도 초기화
                 self.preview_label.setText("프리뷰 없음")
 
         except Exception as e:
@@ -308,6 +311,9 @@ class DetailPanel(QWidget):
             if sequence.get('preview_path'):
                 self._show_preview(sequence['preview_path'])
             else:
+                self.preview_label.clear()
+                self.preview_label.setPixmap(QPixmap())
+                self.original_pixmap = None  # 원본 이미지도 초기화
                 self.preview_label.setText("프리뷰 없음")
 
         except Exception as e:
@@ -339,6 +345,9 @@ class DetailPanel(QWidget):
             if shot.get('preview_path'):
                 self._show_preview(shot['preview_path'])
             else:
+                self.preview_label.clear()
+                self.preview_label.setPixmap(QPixmap())
+                self.original_pixmap = None  # 원본 이미지도 초기화
                 self.preview_label.setText("프리뷰 없음")
 
         except Exception as e:
@@ -402,6 +411,9 @@ class DetailPanel(QWidget):
                 self._show_preview(preview_path)
                 self.logger.debug(f"프리뷰 이미지 표시됨: {preview_path}")
             else:
+                self.preview_label.clear()
+                self.preview_label.setPixmap(QPixmap())
+                self.original_pixmap = None  # 원본 이미지도 초기화
                 self.preview_label.setText("프리뷰 없음")
                 self.logger.debug("프리뷰 이미지 없음")
 
