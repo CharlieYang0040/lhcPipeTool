@@ -83,7 +83,7 @@ def get_input_style():
         }}
 
         QComboBox::down-arrow {{
-            image: url(resources/icons/ue-arrow-down.svg);
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-down.svg);
             width: {SIZES['icon_size_small']}px;
             height: {SIZES['icon_size_small']}px;
         }}
@@ -138,7 +138,7 @@ def get_input_style():
         QCheckBox::indicator:checked {{
             background-color: {COLORS['info']};
             border-color: {COLORS['info']};
-            image: url(resources/icons/ue-check.svg);
+            image: url(lhcPipeToolApp/resources/icons/ue-check.svg);
         }}
 
         /* 라디오 버튼 스타일 */
@@ -164,6 +164,6 @@ def get_input_style():
         QRadioButton::indicator:checked {{
             background-color: {COLORS['info']};
             border-color: {COLORS['info']};
-            image: url(resources/icons/ue-radio-checked.svg);
+            image: url(lhcPipeToolApp/resources/icons/ue-radio-checked.svg);
         }}
     """

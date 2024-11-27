@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QComboBox
 )
 from PySide6.QtCore import Qt
+from ..styles.components import get_dialog_style, get_button_style, get_table_style, get_input_style
 
 class WorkerManagerDialog(QDialog):
     def __init__(self, worker_service, parent=None):
@@ -12,6 +13,9 @@ class WorkerManagerDialog(QDialog):
         self.worker_service = worker_service
         self.setup_ui()
         self.load_workers()
+        
+        # 스타일시트 적용
+        self.setStyleSheet(get_dialog_style())
         
     def setup_ui(self):
         self.setWindowTitle("작업자 관리")
@@ -54,6 +58,19 @@ class WorkerManagerDialog(QDialog):
         btn_layout.addWidget(refresh_btn)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
+        
+        # 입력 필드 스타일 적용
+        self.name_edit.setStyleSheet(get_input_style())
+        self.department_combo.setStyleSheet(get_input_style())
+        
+        # 버튼 스타일 적용
+        add_btn.setStyleSheet(get_button_style())
+        delete_btn.setStyleSheet(get_button_style())
+        refresh_btn.setStyleSheet(get_button_style()) 
+        close_btn.setStyleSheet(get_button_style())
+        
+        # 테이블 스타일 적용
+        self.table.setStyleSheet(get_table_style())
         
     def load_workers(self):
         """작업자 목록 로드"""
