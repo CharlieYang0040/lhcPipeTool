@@ -2,8 +2,8 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
                               QPushButton, QLabel, QMessageBox,
                               QHBoxLayout, QTextEdit)
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QIcon, QPixmap, QImage
+from PySide6.QtCore import Qt, QTimer
+from ..styles.components import get_dialog_style, get_button_style
 
 class NewSequenceDialog(QDialog):
     def __init__(self, project_service, project_id, project_tree, sequence=None, parent=None):
@@ -23,41 +23,7 @@ class NewSequenceDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # 스타일 설정
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #15151e;
-            }
-            QLabel {
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }
-            QLineEdit, QTextEdit {
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 5px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }
-            QPushButton {
-                background-color: #2d2d3d;
-                border: none;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 8px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #363647;
-            }
-            QPushButton:pressed {
-                background-color: #404052;
-            }
-        """)
+        self.setStyleSheet(get_dialog_style())
         
         # 시퀀스 이름 입력
         name_layout = QVBoxLayout()
@@ -99,11 +65,11 @@ class NewSequenceDialog(QDialog):
         button_layout.setSpacing(10)
         
         self.save_button = QPushButton("저장")
-        self.save_button.setMinimumWidth(100)
+        self.save_button.setStyleSheet(get_button_style())
         self.save_button.clicked.connect(self.save_sequence)
         
         self.cancel_button = QPushButton("취소")
-        self.cancel_button.setMinimumWidth(100)
+        self.cancel_button.setStyleSheet(get_button_style())
         self.cancel_button.clicked.connect(self.reject)
         
         button_layout.addStretch()

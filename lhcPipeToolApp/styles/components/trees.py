@@ -17,7 +17,6 @@ def get_tree_style():
         QTreeWidget::item {{
             color: {COLORS['text']};
             padding: {SIZES['spacing_medium']}px;
-            border-radius: {SIZES['border_radius']}px;
         }}
 
         QTreeWidget::item:hover {{
@@ -35,31 +34,18 @@ def get_tree_style():
         /* 브랜치(확장/축소) 컨트롤 스타일 */
         QTreeWidget::branch {{
             background: transparent;
+            border: none;
             padding-left: {SIZES['spacing_medium']}px;
-        }}
-
-        QTreeWidget::branch:has-siblings:!adjoins-item {{
-            border-image: url(resources/icons/ue-vline.svg) 0;
-        }}
-
-        QTreeWidget::branch:has-siblings:adjoins-item {{
-            border-image: url(resources/icons/ue-branch-more.svg) 0;
-        }}
-
-        QTreeWidget::branch:!has-children:!has-siblings:adjoins-item {{
-            border-image: url(resources/icons/ue-branch-end.svg) 0;
         }}
 
         QTreeWidget::branch:has-children:!has-siblings:closed,
         QTreeWidget::branch:closed:has-children:has-siblings {{
-            border-image: none;
-            image: url(resources/icons/ue-branch-closed.svg);
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-right.svg);
         }}
 
         QTreeWidget::branch:open:has-children:!has-siblings,
         QTreeWidget::branch:open:has-children:has-siblings {{
-            border-image: none;
-            image: url(resources/icons/ue-branch-open.svg);
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-down.svg);
         }}
 
         /* 커스텀 트리 아이템 위젯 스타일 */

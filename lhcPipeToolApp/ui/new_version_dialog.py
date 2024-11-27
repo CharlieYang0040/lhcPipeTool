@@ -13,6 +13,7 @@ from ..services.project_service import ProjectService
 from ..services.version_services import (
     ShotVersionService, SequenceVersionService, ProjectVersionService
 )
+from ..styles.components import get_dialog_style, get_button_style
 
 class NewVersionDialog(QDialog):
     def __init__(self, db_connector, item_id, item_type, parent=None):
@@ -59,119 +60,14 @@ class NewVersionDialog(QDialog):
             self.setWindowTitle("새 시퀀스 버전 생성")
         else:  # shot
             self.setWindowTitle("새 샷 버전 생성")
+            
         self.setMinimumWidth(500)
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         layout.setContentsMargins(20, 20, 20, 20)
         
-        # SVG 아이콘 정의 (완전한 SVG XML 형식)
-        FOLDER_ICON = '''<?xml version="1.0" encoding="UTF-8"?>
-            <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 7C3 5.89543 3.89543 5 5 5H9L11 7H19C20.1046 7 21 7.89543 21 9V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V7Z" 
-                      stroke="#e0e0e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>'''
-        self.base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        arrow_down = os.path.join(self.base_path, 'lhcPipeToolApp', 'resources', 'icons', 'ue-arrow-down.svg')
-
-        # 스타일 정의
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: #15151e;
-            }}
-            QLabel {{
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }}
-            QLineEdit, QTextEdit {{
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 5px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }}
-            QComboBox {{
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 5px;
-                padding-right: 25px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-                min-height: 25px;
-            }}
-            QComboBox::drop-down {{
-                border: none;
-                padding-right: 10px;
-            }}
-            QComboBox::down-arrow {{
-                image: url({arrow_down.replace('\\', '/')});
-            }}
-            QComboBox::drop-down::after {{
-                color: #e0e0e0;
-                font-size: 14px;
-            }}
-            QComboBox:on {{
-                border: 1px solid #4a4a5a;
-            }}
-            QComboBox QAbstractItemView {{
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                color: #e0e0e0;
-                selection-background-color: #2d2d3d;
-                padding: 5px;
-            }}
-            QPushButton {{
-                background-color: #2d2d3d;
-                border: none;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 8px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-                background-color: #363647;
-            }}
-            QPushButton:pressed {{
-                background-color: #404052;
-            }}
-            QPushButton#iconButton {{
-                padding: 5px;
-                width: 30px;
-                height: 30px;
-                background-color: transparent;
-            }}
-            QPushButton#iconButton:hover {{
-                background-color: #2d2d3d;
-            }}
-            QPushButton#iconButton:pressed {{
-                background-color: #363647;
-            }}
-            QRadioButton {{
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: 13px;
-                spacing: 5px;
-            }}
-            QRadioButton::indicator {{
-                width: 18px;
-                height: 18px;
-            }}
-            QLineEdit#previewPath {{
-                color: #808080;
-                font-size: 12px;
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                padding: 3px;
-            }}
-            QLineEdit#previewPath[text=""] {{
-                color: rgba(224, 224, 224, 0.5);
-            }}
-        """)
+        # 중앙화된 스타일 적용
+        self.setStyleSheet(get_dialog_style())
         
         # 작업자 이름
         worker_layout = QHBoxLayout()
@@ -192,20 +88,16 @@ class NewVersionDialog(QDialog):
         file_layout.setSpacing(10)
         file_label = QLabel("파일:")
         file_label.setFixedWidth(60)
+        
         self.file_path_input = QLineEdit()
         self.file_path_input.editingFinished.connect(self.handle_file_path_change)
         
-        # 파일 찾기 버튼을 SVG 아이콘으로 설정
+        # 파일 브라우저 버튼
         self.file_browse_btn = QPushButton()
         self.file_browse_btn.setObjectName("iconButton")
-        self.file_browse_btn.setFixedSize(QSize(30, 30))
-        
-        # SVG 문자열로부터 QIcon 생성
-        icon = QIcon()
-        icon.addPixmap(QPixmap.fromImage(QImage.fromData(FOLDER_ICON.encode('utf-8'), 'SVG')), QIcon.Normal, QIcon.Off)
-        self.file_browse_btn.setIcon(icon)
-        self.file_browse_btn.setIconSize(QSize(20, 20))
-        self.file_browse_btn.setToolTip("파일 찾기")
+        self.file_browse_btn.setFixedSize(30, 30)
+        self.file_browse_btn.setIcon(QIcon("lhcPipeToolApp/resources/icons/folder-icon.svg"))
+        self.file_browse_btn.setStyleSheet(get_button_style(min_width=13))
         self.file_browse_btn.clicked.connect(self.browse_file)
         
         file_layout.addWidget(file_label)
@@ -215,25 +107,27 @@ class NewVersionDialog(QDialog):
         
         # 상태 선택
         status_layout = QHBoxLayout()
-        status_layout.setSpacing(5)
+        status_layout.setSpacing(10)
         status_label = QLabel("상태:")
         status_label.setFixedWidth(60)
-        status_layout.addWidget(status_label)
         
-        self.status_group = QButtonGroup(self)
+        # 상태 라디오 버튼 그룹
         status_widget = QWidget()
         status_buttons_layout = QHBoxLayout(status_widget)
-        status_buttons_layout.setSpacing(8)
+        status_buttons_layout.setSpacing(15)
         status_buttons_layout.setContentsMargins(0, 0, 0, 0)
         
-        status_options = ['pending', 'in_progress', 'review', 'approved', 'rejected']
-        for i, status in enumerate(status_options):
+        self.status_group = QButtonGroup(self)
+        statuses = ["wip", "pub", "retake"]
+        
+        for i, status in enumerate(statuses):
             radio = QRadioButton(status)
             if i == 0:
                 radio.setChecked(True)
             self.status_group.addButton(radio, i)
             status_buttons_layout.addWidget(radio)
         
+        status_layout.addWidget(status_label)
         status_layout.addWidget(status_widget, 1)
         layout.addLayout(status_layout)
         
@@ -269,10 +163,12 @@ class NewVersionDialog(QDialog):
         self.create_button = QPushButton("버전 생성")
         self.create_button.setMinimumWidth(100)
         self.create_button.clicked.connect(self.create_version)
+        self.create_button.setStyleSheet(get_button_style())
         
         self.cancel_button = QPushButton("취소")
         self.cancel_button.setMinimumWidth(100)
         self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.setStyleSheet(get_button_style())
         
         button_layout.addStretch()
         button_layout.addWidget(self.create_button)

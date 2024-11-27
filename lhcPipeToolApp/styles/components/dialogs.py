@@ -34,10 +34,11 @@ def get_dialog_style():
         QDialog QComboBox::drop-down {{
             border: none;
             width: {SIZES['spacing_xlarge']}px;
+            margin-right: {SIZES['spacing_medium']}px;
         }}
 
         QDialog QComboBox::down-arrow {{
-            image: url(resources/icons/ue-arrow-down.svg);
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-down.svg);
             width: {SIZES['icon_size_small']}px;
             height: {SIZES['icon_size_small']}px;
         }}

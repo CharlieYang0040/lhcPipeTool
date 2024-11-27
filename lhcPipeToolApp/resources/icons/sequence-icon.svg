@@ -1,4 +1,16 @@
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z"
-          fill="#e0e0e0"/>
+    <!-- 메인 폴더 아이콘 -->
+    <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" fill="#FF9800"/>
+    
+    <!-- 폴더 내부 음영 -->
+    <path d="M4 6h5.17l2 2H20v10H4V6z" fill="#FFA726"/>
+    
+    <!-- 필름 스트립 아이콘 -->
+    <rect x="8" y="10" width="8" height="6" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="9" y="11" width="1" height="1" fill="#FF9800"/>
+    <rect x="9" y="14" width="1" height="1" fill="#FF9800"/>
+    <rect x="14" y="11" width="1" height="1" fill="#FF9800"/>
+    <rect x="14" y="14" width="1" height="1" fill="#FF9800"/>
+    <rect x="11.5" y="11" width="1" height="1" fill="#FF9800"/>
+    <rect x="11.5" y="14" width="1" height="1" fill="#FF9800"/>
 </svg>

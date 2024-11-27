@@ -1,4 +1,5 @@
 """프로젝트 트리 위젯"""
+import os
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QMessageBox, QApplication
 from PySide6.QtCore import Signal, Qt, QSize, QEvent
 from ..services.project_service import ProjectService
@@ -9,10 +10,11 @@ from ..utils.logger import setup_logger
 from .project_tree_item import CustomTreeItemWidget
 from .new_shot_dialog import NewShotDialog
 from .new_sequence_dialog import NewSequenceDialog
+from .new_project_dialog import NewProjectDialog
 from .new_version_dialog import NewVersionDialog
 from ..utils.event_system import EventSystem
 from ..config.app_state import AppState
-import os
+from ..styles.components import get_tree_style
 
 class ProjectTreeWidget(QTreeWidget):
     item_selected = Signal(int)
@@ -37,10 +39,12 @@ class ProjectTreeWidget(QTreeWidget):
         
         # 이벤트 구독
         EventSystem.subscribe('project_updated', self.refresh)
+        EventSystem.subscribe('sequence_updated', self.refresh)
+        EventSystem.subscribe('shot_updated', self.refresh)
 
     def setup_ui(self):
         """UI 초기화"""
-        self.setHeaderLabels(["Project Structure"])
+        self.setHeaderLabels(["영상연출실"])
         self.setColumnCount(1)
         
         # 화면 해상도에 따른 크기 조정
@@ -59,86 +63,7 @@ class ProjectTreeWidget(QTreeWidget):
         tree_width = int(400 * scale_factor)
         self.setColumnWidth(0, tree_width)
         
-        self.base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        
-        arrow_right = os.path.join(self.base_path, 'lhcPipeToolApp', 'resources', 'icons', 'ue-arrow-right.svg')
-        arrow_down = os.path.join(self.base_path, 'lhcPipeToolApp', 'resources', 'icons', 'ue-arrow-down.svg')
-        
-        self.setStyleSheet(f"""
-            QTreeWidget {{
-                background-color: #15151e;
-                border: none;
-                outline: none;
-            }}
-            
-            QTreeWidget::item {{
-                padding: 4px;
-                border: none;
-                outline: none;
-            }}
-            
-            QTreeWidget::item:selected {{
-                outline: none;
-                background: #2d2d3d;
-            }}
-            
-            QTreeWidget::item:hover {{
-                background: #1f1f2c;
-            }}
-            
-            QTreeWidget::branch {{
-                background: transparent;
-                border: none;
-            }}
-            
-            /* 헤더 스타일 추가 */
-            QHeaderView::section {{
-                background-color: #1a1a24;
-                padding: 8px;
-                border: none;
-                border-bottom: 2px solid #2d2d3d;
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-weight: 500;
-                font-size: 14px;
-            }}
-            
-            QTreeWidget::branch:has-children:!has-siblings:closed,
-            QTreeWidget::branch:closed:has-children:has-siblings {{
-                image: url({arrow_right.replace('\\', '/')});
-            }}
-            
-            QTreeWidget::branch:open:has-children:!has-siblings,
-            QTreeWidget::branch:open:has-children:has-siblings {{
-                image: url({arrow_down.replace('\\', '/')});
-            }}
-            
-            QScrollBar:vertical {{
-                background: #1a1a24;
-                width: 8px;
-                margin: 0px;
-            }}
-            
-            QScrollBar::handle:vertical {{
-                background: #2d2d3d;
-                min-height: 20px;
-                border-radius: 4px;
-            }}
-            
-            QScrollBar::handle:vertical:hover {{
-                background: #363647;
-            }}
-            
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-            
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {{
-                background: none;
-            }}
-        """)
+        self.setStyleSheet(get_tree_style())
         
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
@@ -246,16 +171,21 @@ class ProjectTreeWidget(QTreeWidget):
     def add_project(self):
         """프로젝트 추가"""
         try:
-            name, ok = QInputDialog.getText(self, "새 프로젝트 추가", "프로젝트 이름을 입력하세요")
-            if ok and name:
-                if self.project_service.create_project(name):
-                    self.refresh()
-                else:
-                    QMessageBox.critical(self, "오류", "프로젝트 추가 실패")
+            dialog = NewProjectDialog(self.project_service, self)
+
+            if dialog.exec_():
+                self.logger.info("새 프로젝트 생성 성공")
+                self.refresh()
+                return True
+                
+            self.logger.debug("프로젝트 생성 취소됨")
+            return False
+        
         except Exception as e:
             self.logger.error(f"프로젝트 추가 실패: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "오류", f"프로젝트 추가 실패: {str(e)}")
-
+            return False
+        
     def add_sequence(self, parent_item, project_id):
         """시퀀스 추가"""
         try:

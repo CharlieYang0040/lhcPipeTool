@@ -1,8 +1,10 @@
 """샷 생성/편집 다이얼로그"""
+import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
                               QTextEdit, QComboBox, QPushButton, 
                               QMessageBox, QFormLayout, QHBoxLayout, QLabel)
 from PySide6.QtCore import Qt
+from ..styles.components import get_dialog_style, get_button_style
 
 class NewShotDialog(QDialog):
     def __init__(self, project_service, sequence_id, project_tree, shot=None, parent=None):
@@ -20,56 +22,8 @@ class NewShotDialog(QDialog):
         layout.setSpacing(10)
         layout.setContentsMargins(20, 20, 20, 20)
         
-        # 스타일 설정
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #15151e;
-            }
-            QLabel {
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }
-            QLineEdit, QTextEdit, QComboBox {
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 5px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-            }
-            QComboBox {
-                padding-right: 20px;
-            }
-            QComboBox::drop-down {
-                border: none;
-            }
-            QComboBox::down-arrow {
-                image: url(resourcesicons/ue-arrow-down.svg);
-            }
-            QComboBox QAbstractItemView {
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                selection-background-color: #2d2d3d;
-            }
-            QPushButton {
-                background-color: #2d2d3d;
-                border: none;
-                border-radius: 4px;
-                color: #e0e0e0;
-                padding: 8px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
-                min-width: 100px;
-            }
-            QPushButton:hover {
-                background-color: #363647;
-            }
-            QPushButton:pressed {
-                background-color: #404052;
-            }
-        """)
+        # 중앙화된 스타일 적용
+        self.setStyleSheet(get_dialog_style())
         
         # 샷 이름 입력
         name_layout = QVBoxLayout()
@@ -116,10 +70,12 @@ class NewShotDialog(QDialog):
         
         self.save_button = QPushButton("저장")
         self.save_button.clicked.connect(self.save_shot)
+        self.save_button.setStyleSheet(get_button_style())
         
         self.cancel_button = QPushButton("취소")
         self.cancel_button.clicked.connect(self.reject)
-        
+        self.cancel_button.setStyleSheet(get_button_style())
+
         button_layout.addStretch()
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.cancel_button)
