@@ -276,9 +276,9 @@ class MainWindow(QMainWindow):
         else:
             self.version_table.load_versions(item_id)
 
-    def handle_version_selection(self, version_id):
+    def handle_version_selection(self, item_id):
         """버전테이블에서 버전 선택 처리"""
-        self.detail_panel._show_version_fields(version_id)
+        self.detail_panel._show_version_fields(item_id)
 
     def handle_item_type_changed(self, item_type, item_id):
         """아이템 타입 변경 처리"""

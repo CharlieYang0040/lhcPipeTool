@@ -225,134 +225,100 @@ class DetailPanel(QWidget):
         return btn
 
     def show_item_details(self, item_type, item_id):
-        """아이템 타입별 상세 정보 표시"""
+        """아이템 상세 정보 표시"""
+        if item_type == 'project':
+            self._show_item_details_base('project', item_id, 
+                                        self.version_services["project"].get_project_details)
+        elif item_type == 'sequence':
+            self._show_item_details_base('sequence', item_id,
+                                        self.version_services["sequence"].get_sequence_details)
+        elif item_type == 'shot':
+            self._show_item_details_base('shot', item_id,
+                                        self.version_services["shot"].get_shot_details)
+
+    def _show_item_details_base(self, item_type, item_id, get_details_func):
+        """아이템 상세 정보 표시를 위한 기본 메서드"""
         try:
-            self.logger.debug(f"아이템 상세 정보 표시 - type: {item_type}, id: {item_id}")
-            
+            # version 타입의 특별한 처리
+            if item_type == 'version' and item_id == -1:
+                self.logger.debug("버전 선택 안됨")
+                return
+
+            # 데이터 로드
+            item = get_details_func(item_id)
+            if not item:
+                self.logger.warning(f"{item_type} 정보를 찾을 수 없음 - id: {item_id}")
+                self.clear_item_details()
+                return
+
             # 모든 필드 숨기기
             for type_fields in self.type_fields.values():
                 for field_data in type_fields.values():
                     field_data['container'].hide()
 
             # 현재 타입의 필드만 표시
-            if item_type in self.type_fields:
-                for field_data in self.type_fields[item_type].values():
-                    field_data['container'].show()
-
-            # 기존의 show_item_details 로직 실행
-            if item_type == "project":
-                self._show_project_fields(item_id)
-            elif item_type == "sequence":
-                self._show_sequence_fields(item_id)
-            elif item_type == "shot":
-                self._show_shot_fields(item_id)
-            elif item_type == "version":
-                self._show_version_fields(item_id)
-                
-        except Exception as e:
-            self.logger.error(f"아이템 상세 정보 표시 실패: {str(e)}", exc_info=True)
-            self.clear_item_details()
-
-    def _show_project_fields(self, project_id):
-        """프로젝트 필드 표시"""
-        try:
-            # 프로젝트 데이터 로드
-            project = self.version_services["project"].get_project_details(project_id)
-            if not project:
-                self.logger.warning(f"프로젝트 정보를 찾을 수 없음 - project_id: {project_id}")
-                self.clear_item_details()
-                return
+            for field_data in self.type_fields[item_type].values():
+                field_data['container'].show()
 
             # 필드 데이터 업데이트
-            fields_data = {
-                '이름': project.get('name', ''),
-                '코멘트': project.get('description', ''),
-                '생성일': project.get('created_at', ''),
-                '상태': project.get('status', ''),
-                '버전 수': str(project.get('version_count', 0))
-            }
-            self._update_fields_data('project', fields_data)
+            fields_data = self._get_fields_data(item_type, item)
+            self._update_fields_data(item_type, fields_data)
 
             # 프리뷰 표시
-            if project.get('preview_path'):
-                self._show_preview(project['preview_path'])
+            preview_path = item.get('preview_path')
+            if preview_path and os.path.exists(preview_path):
+                self._show_preview(preview_path)
+                self.logger.debug(f"프리뷰 이미지 표시됨: {preview_path}")
             else:
                 self.preview_label.clear()
                 self.preview_label.setPixmap(QPixmap())
-                self.original_pixmap = None  # 원본 이미지도 초기화
+                self.original_pixmap = None
                 self.preview_label.setText("프리뷰 없음")
+                self.logger.debug("프리뷰 이미지 없음")
 
         except Exception as e:
-            self.logger.error(f"프로젝트 상세 정보 표시 실패: {str(e)}", exc_info=True)
+            self.logger.error(f"{item_type} 상세 정보 표시 실패: {str(e)}", exc_info=True)
             self.clear_item_details()
 
-    def _show_sequence_fields(self, sequence_id):
-        """시퀀스 필드 표시"""
-        try:
-            # 시퀀스 데이터 로드
-            sequence = self.version_services["sequence"].get_sequence_details(sequence_id)
-            if not sequence:
-                self.logger.warning(f"시퀀스 정보를 찾을 수 없음 - sequence_id: {sequence_id}")
-                self.clear_item_details()
-                return
-
-            # 필드 데이터 업데이트
-            fields_data = {
-                '이름': sequence.get('name', ''),
-                '코멘트': sequence.get('description', ''),
-                '레벨 경로': sequence.get('level_path', ''),
-                '생성일': sequence.get('created_at', ''),
-                '상태': sequence.get('status', ''),
-                '샷 수': str(sequence.get('shot_count', 0))
+    def _get_fields_data(self, item_type, item):
+        """아이템 타입별 필드 데이터 구성"""
+        if item_type == 'project':
+            return {
+                '이름': item.get('name', ''),
+                '코멘트': item.get('description', ''),
+                '생성일': item.get('created_at', ''),
+                '상태': item.get('status', ''),
+                '버전 수': str(item.get('version_count', 0))
             }
-            self._update_fields_data('sequence', fields_data)
-
-            # 프리뷰 표시
-            if sequence.get('preview_path'):
-                self._show_preview(sequence['preview_path'])
-            else:
-                self.preview_label.clear()
-                self.preview_label.setPixmap(QPixmap())
-                self.original_pixmap = None  # 원본 이미지도 초기화
-                self.preview_label.setText("프리뷰 없음")
-
-        except Exception as e:
-            self.logger.error(f"시퀀스 상세 정보 표시 실패: {str(e)}", exc_info=True)
-            self.clear_item_details()
-
-    def _show_shot_fields(self, shot_id):
-        """샷 필드 표시"""
-        try:
-            # 샷 데이터 로드
-            shot = self.version_services["shot"].get_shot_details(shot_id)
-            if not shot:
-                self.logger.warning(f"샷 정보를 찾을 수 없음 - shot_id: {shot_id}")
-                self.clear_item_details()
-                return
-
-            # 필드 데이터 업데이트
-            fields_data = {
-                '이름': shot.get('name', ''),
-                '코멘트': shot.get('description', ''),
-                '생성일': shot.get('created_at', ''),
-                '상태': shot.get('status', ''),
-                '프레임 범위': f"{shot.get('start_frame', '')} - {shot.get('end_frame', '')}",
-                '버전 수': str(shot.get('version_count', 0))
+        elif item_type == 'sequence':
+            return {
+                '이름': item.get('name', ''),
+                '코멘트': item.get('description', ''),
+                '레벨 경로': item.get('level_path', ''),
+                '생성일': item.get('created_at', ''),
+                '상태': item.get('status', ''),
+                '샷 수': str(item.get('shot_count', 0))
             }
-            self._update_fields_data('shot', fields_data)
-
-            # 프리뷰 표시
-            if shot.get('preview_path'):
-                self._show_preview(shot['preview_path'])
-            else:
-                self.preview_label.clear()
-                self.preview_label.setPixmap(QPixmap())
-                self.original_pixmap = None  # 원본 이미지도 초기화
-                self.preview_label.setText("프리뷰 없음")
-
-        except Exception as e:
-            self.logger.error(f"샷 상세 정보 표시 실패: {str(e)}", exc_info=True)
-            self.clear_item_details()
+        elif item_type == 'shot':
+            return {
+                '이름': item.get('name', ''),
+                '코멘트': item.get('description', ''),
+                '생성일': item.get('created_at', ''),
+                '상태': item.get('status', ''),
+                '프레임 범위': f"{item.get('start_frame', '')} - {item.get('end_frame', '')}",
+                '버전 수': str(item.get('version_count', 0))
+            }
+        elif item_type == 'version':
+            return {
+                '버전': item.get('name', ''),
+                '작업자': item.get('worker_name', ''),
+                '코멘트': item.get('comment', ''),
+                '생성일': convert_date_format(item.get('created_at', '')),
+                '상태': item.get('status', ''),
+                '경로': item.get('file_path', ''),
+                '렌더 경로': item.get('render_path', ''),
+                '프리뷰 경로': item.get('preview_path', '')
+            }
 
     def _show_version_fields(self, version_id):
         """버전 필드 표시"""
@@ -382,16 +348,7 @@ class DetailPanel(QWidget):
                 field_data['container'].show()
 
             # 필드 데이터 업데이트
-            fields_data = {
-                '버전': version.get('name', ''),
-                '작업자': version.get('worker_name', ''),
-                '코멘트': version.get('comment', ''),
-                '생성일': convert_date_format(version.get('created_at', '')),
-                '상태': version.get('status', ''),
-                '경로': version.get('file_path', ''),
-                '렌더 경로': version.get('render_path', ''),
-                '프리뷰 경로': version.get('preview_path', '')
-            }
+            fields_data = self._get_fields_data('version', version)
             
             self.logger.debug(f"업데이트할 필드 데이터: {fields_data}")
             
@@ -413,7 +370,7 @@ class DetailPanel(QWidget):
             else:
                 self.preview_label.clear()
                 self.preview_label.setPixmap(QPixmap())
-                self.original_pixmap = None  # 원본 이미지도 초기화
+                self.original_pixmap = None
                 self.preview_label.setText("프리뷰 없음")
                 self.logger.debug("프리뷰 이미지 없음")
 

@@ -270,9 +270,10 @@ class VersionTableWidget(QWidget):
             self.version_selected.emit(-1)
             return
             
-        version_id = item.data(Qt.UserRole)
-        self.logger.debug(f"선택된 버전 ID: {version_id}")
-        self.version_selected.emit(version_id)
+        # data() 메서드에는 role 인자만 전달
+        item_id = item.data(Qt.UserRole)
+        self.logger.debug(f"선택된 버전 ID: {item_id}")
+        self.version_selected.emit(item_id)
 
     def eventFilter(self, obj, event):
         """이벤트 필터"""
