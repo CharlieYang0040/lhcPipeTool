@@ -46,7 +46,7 @@ class NewShotDialog(QDialog):
                 border: none;
             }
             QComboBox::down-arrow {
-                image: url(resources/icons/ue-arrow-down.svg);
+                image: url(resourcesicons/ue-arrow-down.svg);
             }
             QComboBox QAbstractItemView {
                 background-color: #1a1a24;

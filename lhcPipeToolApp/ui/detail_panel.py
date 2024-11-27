@@ -2,7 +2,7 @@
 import os, subprocess
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTextEdit, QMessageBox, QHBoxLayout,
-    QFrame, QLineEdit, QPushButton, QApplication, QSizePolicy, QStackedWidget
+    QFrame, QLineEdit, QPushButton, QApplication, QSizePolicy
 )
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QPixmap
@@ -13,6 +13,9 @@ from ..services.version_services import (
 from ..utils.logger import setup_logger
 from ..utils.db_utils import convert_date_format
 from ..config.app_state import AppState
+from ..styles.components import (
+    get_input_style, get_button_style, get_frame_style, get_label_style
+)
 
 class AspectRatioWidget(QWidget):
     """16:9 비율을 유지하는 위젯"""
@@ -49,7 +52,6 @@ class DetailPanel(QWidget):
     def __init__(self, db_connector):
         super().__init__()
         self.logger = setup_logger(__name__)
-        self.db_connector = db_connector
         self.project_service = ProjectService(db_connector)
         self.version_services = {
             "shot": ShotVersionService(db_connector, self.logger),
@@ -116,14 +118,7 @@ class DetailPanel(QWidget):
 
         # 아이템 정보를 감싸는 프레임
         item_frame = QFrame()
-        item_frame.setStyleSheet("""
-            QFrame {
-                background-color: #1a1a24;
-                border: 1px solid #2d2d3d;
-                border-radius: 8px;
-                padding: 1px;
-            }
-        """)
+        item_frame.setStyleSheet(get_frame_style())
         item_frame_layout = QVBoxLayout(item_frame)
         item_frame_layout.setContentsMargins(15, 15, 15, 15)
         item_frame_layout.setSpacing(10)
@@ -138,16 +133,7 @@ class DetailPanel(QWidget):
         self.preview_label = QLabel()
         self.preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setStyleSheet("""
-            QLabel {
-                background-color: #15151e;
-                border: 1px solid #2d2d3d;
-                border-radius: 6px;
-                color: #8e8e9a;
-                font-family: 'Segoe UI';
-                font-size: 13px;
-            }
-        """)
+        self.preview_label.setStyleSheet(get_label_style())
 
         # 프리뷰 레이블을 AspectRatioWidget으로 감싸기
         aspect_ratio_widget = AspectRatioWidget(self.preview_label)
@@ -160,18 +146,6 @@ class DetailPanel(QWidget):
         fields_layout = QVBoxLayout(fields_container)
         fields_layout.setSpacing(12)
         fields_layout.setContentsMargins(0, 0, 0, 0)
-
-        # # 상태 필드
-        # status_container = self._create_field_container("상태")
-        # self.status_field = self._create_line_edit()
-        # status_container.layout().addWidget(self.status_field)
-        # fields_layout.addWidget(status_container)
-
-        # # 설명/코멘트 필드
-        # comment_container = self._create_field_container("설명")
-        # self.comment_field = self._create_text_edit()
-        # comment_container.layout().addWidget(self.comment_field)
-        # fields_layout.addWidget(comment_container)
 
         # 각 타입별 필드들을 모두 생성하고 숨김 상태로 초기화
         self.type_fields = {}
@@ -221,34 +195,17 @@ class DetailPanel(QWidget):
         layout.setSpacing(4)
 
         label = QLabel(label_text)
-        label.setStyleSheet("""
-            QLabel {
-                color: #8e8e9a;
-                font-family: 'Segoe UI';
-                font-size: 12px;
-                font-weight: 500;
-            }
-        """)
+        label.setStyleSheet(get_label_style())
         layout.addWidget(label)
         return container
 
     def _create_line_edit(self):
-        """인 에딧 위젯 생성"""
+        """인풋 에딧 위젯 생성"""
         widget = QLineEdit()
         widget.setReadOnly(True)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         widget.setFixedHeight(32)
-        widget.setStyleSheet("""
-            QLineEdit {
-                background-color: #15151e;
-                border: 1px solid #2d2d3d;
-                border-radius: 6px;
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: 13px;
-                padding: 4px 8px;
-            }
-        """)
+        widget.setStyleSheet(get_input_style())
         return widget
 
     def _create_text_edit(self):
@@ -257,39 +214,14 @@ class DetailPanel(QWidget):
         widget.setReadOnly(True)
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         widget.setFixedHeight(60)
-        widget.setStyleSheet("""
-            QTextEdit {
-                background-color: #15151e;
-                border: 1px solid #2d2d3d;
-                border-radius: 6px;
-                color: #e0e0e0;
-                font-family: 'Segoe UI';
-                font-size: 13px;
-                padding: 8px;
-            }
-        """)
+        widget.setStyleSheet(get_input_style())
         return widget
 
     def _create_action_button(self, icon_text):
         """액션 버튼 생성"""
         btn = QPushButton(icon_text)
         btn.setFixedSize(26, 26)
-        btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2d2d3d;
-                border: none;
-                border-radius: 4px;
-                color: #e0e0e0;
-                font-size: 12px;
-                padding: 4px;
-            }
-            QPushButton:hover {
-                background-color: #3d3d4d;
-            }
-            QPushButton:pressed {
-                background-color: #4a4a5a;
-            }
-        """)
+        btn.setStyleSheet(get_button_style(min_width=13))
         return btn
 
     def show_item_details(self, item_type, item_id):
