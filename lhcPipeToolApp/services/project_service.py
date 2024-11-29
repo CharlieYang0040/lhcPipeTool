@@ -132,7 +132,7 @@ class ProjectService:
             cursor.execute(sql, (project_id, str(name), level_path, description))
             sequence_id = cursor.fetchone()[0]
             self.connector.commit()
-            EventSystem.notify('project_updated')  # 이벤트 발생
+            EventSystem.notify('sequence_updated')  # 이벤트 발생
             
             self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
             return sequence_id
@@ -164,7 +164,7 @@ class ProjectService:
             cursor.execute(sql, (sequence_id, str(name), status, description))
             shot_id = cursor.fetchone()[0]
             self.connector.commit()
-            EventSystem.notify('project_updated')  # 이벤트 발생
+            EventSystem.notify('shot_updated')  # 이벤트 발생
             
             self.logger.info(f"샷 생성 성공 - ID: {shot_id}")
             return shot_id

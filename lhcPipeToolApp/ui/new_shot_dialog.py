@@ -1,9 +1,7 @@
 """샷 생성/편집 다이얼로그"""
-import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
                               QTextEdit, QComboBox, QPushButton, 
-                              QMessageBox, QFormLayout, QHBoxLayout, QLabel)
-from PySide6.QtCore import Qt
+                              QMessageBox, QHBoxLayout, QLabel)
 from ..styles.components import get_dialog_style, get_button_style
 
 class NewShotDialog(QDialog):

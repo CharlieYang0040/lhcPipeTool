@@ -125,7 +125,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.project_tree)
         
         # 버전 테이블
-        self.version_table = VersionTableWidget(self.db_connector)
+        self.version_table = VersionTableWidget(self.db_connector, self.project_tree)
         splitter.addWidget(self.version_table)
         
         # 상세 정보 패널
@@ -221,6 +221,7 @@ class MainWindow(QMainWindow):
         from .new_version_dialog import NewVersionDialog
         dialog = NewVersionDialog(
             self.db_connector, 
+            self.project_tree,
             self.app_state.current_item_id, 
             self.app_state.current_item_type, 
             self

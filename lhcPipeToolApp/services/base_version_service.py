@@ -2,7 +2,7 @@
 from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
 from ..models.worker import Worker
 from ..utils.db_utils import convert_date_format
-
+from ..utils.event_system import EventSystem
 class BaseVersionService:
     def __init__(self, connector, logger):
         self.connector = connector
@@ -16,7 +16,7 @@ class BaseVersionService:
         self.worker_model = Worker(connector)
 
     def create_version(self, item_id, version_number=None, worker_name=None, 
-                      file_path=None, preview_path=None, comment=None, status=None):
+                      file_path=None, render_path=None, preview_path=None, comment=None, status=None):
         """새 버전 생성"""
         try:
             self.logger.info(f"버전 생성 시작 - {self.get_foreign_key()}: {item_id}")
@@ -41,11 +41,12 @@ class BaseVersionService:
                 'version_number': version_number,
                 'worker_id': worker[0],
                 'file_path': file_path,
+                'render_path': render_path,
                 'preview_path': preview_path,
                 'comment': comment,
                 'status': status
             }
-            
+            EventSystem.notify('version_updated')  # 이벤트 발생
             return self.version_models[self.get_foreign_key()].create(**create_data)
             
         except Exception as e:

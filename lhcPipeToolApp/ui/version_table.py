@@ -16,17 +16,18 @@ from ..styles.components import get_table_style
 class VersionTableWidget(QWidget):
     version_selected = Signal(int)
 
-    def __init__(self, db_connector):
+    def __init__(self, db_connector, project_tree):
         super().__init__()
         self.logger = setup_logger(__name__)
         self.db_connector = db_connector
+        self.project_tree = project_tree
         self.version_services = {
             "shot": ShotVersionService(db_connector, self.logger),
             "sequence": SequenceVersionService(db_connector, self.logger),
             "project": ProjectVersionService(db_connector, self.logger)
         }
         self.app_state = AppState()
-        self.new_version_dialog = NewVersionDialog(db_connector, item_id=None, item_type="shot", parent=self)
+        self.new_version_dialog = NewVersionDialog(db_connector, project_tree, item_id=None, item_type="shot", parent=self)
         
         # 화면 해상도에 따른 스케일 팩터 계산
         self.scale_factor = self.calculate_scale_factor()

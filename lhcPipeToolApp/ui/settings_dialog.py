@@ -10,22 +10,23 @@ from ..services.project_service import ProjectService
 from ..services.version_services import (ProjectVersionService, SequenceVersionService, ShotVersionService)
 from ..database.table_manager import TableManager
 from ..utils.logger import setup_logger
+from ..services.settings_service import SettingsService
 
 class SettingsDialog(QDialog):
     def __init__(self, db_connector, parent=None):
         super().__init__(parent)
         self.logger = setup_logger(__name__)
         self.db_connector = db_connector
-        self.settings_file = "config/settings.json"
-        self.load_settings()
+        self.settings_service = SettingsService(db_connector)
         self.setup_ui()
         self.project_service = ProjectService(self.db_connector)
         self.version_services = {
-            "project": ProjectVersionService(self.db_connector),
-            "sequence": SequenceVersionService(self.db_connector),
-            "shot": ShotVersionService(self.db_connector)
+            "project": ProjectVersionService(self.db_connector, self.logger),
+            "sequence": SequenceVersionService(self.db_connector, self.logger),
+            "shot": ShotVersionService(self.db_connector, self.logger)
         }
         self.table_manager = TableManager(self.db_connector)
+        
     def setup_ui(self):
         self.setWindowTitle("Settings")
         self.setMinimumWidth(400)
@@ -44,7 +45,7 @@ class SettingsDialog(QDialog):
         path_group_layout = QVBoxLayout()
         
         root_layout = QHBoxLayout()
-        self.project_root_input = QLineEdit(self.settings.get("project_root", ""))
+        self.project_root_input = QLineEdit()
         browse_button = QPushButton("Browse")
         browse_button.clicked.connect(self.browse_project_root)
         import_button = QPushButton("Import Projects")
@@ -58,10 +59,10 @@ class SettingsDialog(QDialog):
         path_group.setLayout(path_group_layout)
         path_layout.addRow(path_group)
         
-        self.render_output_input = QLineEdit(self.settings.get("render_output", ""))
+        self.render_output_input = QLineEdit()
         path_layout.addRow("Render Output:", self.render_output_input)
         
-        self.preview_output_input = QLineEdit(self.settings.get("preview_output", ""))
+        self.preview_output_input = QLineEdit()
         path_layout.addRow("Preview Output:", self.preview_output_input)
         
         tab_widget.addTab(path_tab, "Paths")
@@ -70,16 +71,16 @@ class SettingsDialog(QDialog):
         db_tab = QWidget()
         db_layout = QFormLayout(db_tab)
         
-        self.db_host_input = QLineEdit(self.settings.get("db_host", "localhost"))
+        self.db_host_input = QLineEdit()
         db_layout.addRow("Database Host:", self.db_host_input)
         
-        self.db_name_input = QLineEdit(self.settings.get("db_name", ""))
+        self.db_name_input = QLineEdit()
         db_layout.addRow("Database Name:", self.db_name_input)
         
-        self.db_user_input = QLineEdit(self.settings.get("db_user", "SYSDBA"))
+        self.db_user_input = QLineEdit()
         db_layout.addRow("Database User:", self.db_user_input)
         
-        self.db_password_input = QLineEdit(self.settings.get("db_password", ""))
+        self.db_password_input = QLineEdit()
         self.db_password_input.setEchoMode(QLineEdit.Password)
         db_layout.addRow("Database Password:", self.db_password_input)
         
@@ -96,45 +97,32 @@ class SettingsDialog(QDialog):
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
         
-    def load_settings(self):
-        """설정 파일 로드"""
-        try:
-            if os.path.exists(self.settings_file):
-                with open(self.settings_file, 'r') as f:
-                    self.settings = json.load(f)
-            else:
-                self.settings = {}
-        except Exception as e:
-            print(f"설정 로드 오류: {e}")
-            self.settings = {}
-            
-    def save_settings(self, key=None, value=None):
-        """설정 저장"""
-        settings = {
-            "project_root": self.project_root_input.text(),
-            "render_output": self.render_output_input.text(),
-            "preview_output": self.preview_output_input.text(),
-            "db_host": self.db_host_input.text(),
-            "db_name": self.db_name_input.text(),
-            "db_user": self.db_user_input.text(),
-            "db_password": self.db_password_input.text()
-        }
+        # 기존 설정값 로드
+        settings = self.settings_service.get_all_settings()
+        self.project_root_input.setText(settings.get("project_root", ""))
+        self.render_output_input.setText(settings.get("render_output", ""))
+        self.preview_output_input.setText(settings.get("preview_output", ""))
+        self.db_host_input.setText(settings.get("db_host", "localhost"))
+        self.db_name_input.setText(settings.get("db_name", ""))
+        self.db_user_input.setText(settings.get("db_user", "SYSDBA"))
+        self.db_password_input.setText(settings.get("db_password", ""))
         
+    def save_settings(self):
+        """설정 저장"""
         try:
-            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-            with open(self.settings_file, 'w') as f:
-                json.dump(settings, f, indent=4)
+            settings = {
+                "project_root": self.project_root_input.text(),
+                "render_output": self.render_output_input.text(),
+                "preview_output": self.preview_output_input.text(),
+                "db_host": self.db_host_input.text(),
+                "db_name": self.db_name_input.text(),
+                "db_user": self.db_user_input.text(),
+                "db_password": self.db_password_input.text()
+            }
             
-            # 데이터베이스에도 설정 저장
-            cursor = self.db_connector.cursor()
             for key, value in settings.items():
-                cursor.execute("""
-                    UPDATE OR INSERT INTO settings (setting_key, setting_value)
-                    VALUES (?, ?)
-                    MATCHING (setting_key)
-                """, (key, value))
-            self.db_connector.commit()
-            
+                self.settings_service.set_setting(key, value)
+                
             self.logger.info("설정 저장 성공")
             self.accept()
         except Exception as e:
@@ -145,8 +133,7 @@ class SettingsDialog(QDialog):
         directory = QFileDialog.getExistingDirectory(self, "프로젝트 루트 디렉토리 선택")
         if directory:
             self.project_root_input.setText(directory)
-            # 설정 저장
-            self.save_settings('project_root', directory)
+            self.settings_service.set_setting('project_root', directory)
             
     def import_projects(self):
         """프로젝트 구조 임포트"""

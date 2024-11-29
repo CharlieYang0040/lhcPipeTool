@@ -1,6 +1,6 @@
 """프로젝트 트리 위젯"""
 import os
-from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QInputDialog, QMessageBox, QApplication
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox, QApplication
 from PySide6.QtCore import Signal, Qt, QSize, QEvent
 from ..services.project_service import ProjectService
 from ..services.version_services import (
@@ -41,6 +41,7 @@ class ProjectTreeWidget(QTreeWidget):
         EventSystem.subscribe('project_updated', self.refresh)
         EventSystem.subscribe('sequence_updated', self.refresh)
         EventSystem.subscribe('shot_updated', self.refresh)
+        EventSystem.subscribe('version_updated', self.refresh)
 
     def setup_ui(self):
         """UI 초기화"""
@@ -69,7 +70,7 @@ class ProjectTreeWidget(QTreeWidget):
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.itemClicked.connect(self.handle_item_click)
         
-
+    # TODO 열려있던 계층 구조 유지
     def load_projects(self):
         """프로젝트 목록 로드"""
         self.clear()
@@ -227,7 +228,7 @@ class ProjectTreeWidget(QTreeWidget):
         try:
             self.logger.debug(f"버전 추가 시작 - item_type: {item_type}, item_id: {item_id}")
 
-            dialog = NewVersionDialog(self.db_connector, item_id, item_type, self)
+            dialog = NewVersionDialog(self.db_connector, self, item_id, item_type, self)
                 
             if dialog.exec_():
                 self.logger.info("새 버전 생성 성공")

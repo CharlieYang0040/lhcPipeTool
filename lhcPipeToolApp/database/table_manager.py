@@ -74,31 +74,7 @@ class TableManager:
         except Exception as e:
             self.logger.error(f"테이블 재생성 실패: {str(e)}", exc_info=True)
             return False
-    
-    def add_column(self, table_name, column_name, column_type):
-        """테이블에 새 컬럼 추가"""
-        try:
-            cursor = self.connector.cursor()
-            # 컬럼 존재 여부 확인
-            cursor.execute(f"""
-                SELECT 1 FROM RDB$RELATION_FIELDS 
-                WHERE RDB$RELATION_NAME = '{table_name.upper()}' 
-                AND RDB$FIELD_NAME = '{column_name.upper()}'
-            """)
-            
-            if not cursor.fetchone():
-                # 컬럼이 없으면 추가
-                cursor.execute(f"ALTER TABLE {table_name} ADD {column_name} {column_type}")
-                self.connector.commit()
-                self.logger.info(f"컬럼 추가 성공: {table_name}.{column_name}")
-                return True
-            else:
-                self.logger.info(f"컬럼이 이미 존재함: {table_name}.{column_name}")
-                return True
-        except Exception as e:
-            self.logger.error(f"컬럼 추가 실패: {str(e)}")
-            return False
-    
+        
     def initialize_settings(self):
         """기본 설정값 초기화"""
         try:
@@ -123,66 +99,7 @@ class TableManager:
         except Exception as e:
             self.logger.error(f"설정 초기화 실패: {str(e)}")
             return False
-    
-    def add_path_columns(self):
-        """경로 관련 컬럼 추가"""
-        try:
-            cursor = self.connector.cursor()
-            
-            # projects 테이블에 path 컬럼 추가
-            cursor.execute("""
-                SELECT 1 FROM RDB$RELATION_FIELDS 
-                WHERE RDB$RELATION_NAME = 'PROJECTS' 
-                AND RDB$FIELD_NAME = 'PATH'
-            """)
-            if not cursor.fetchone():
-                cursor.execute("""
-                    ALTER TABLE projects 
-                    ADD path VARCHAR(500)
-                """)
-                self.logger.info("projects 테이블에 path 컬럼 추가됨")
-            else:
-                self.logger.info("projects 테이블에 이미 path 컬럼이 존재함")
-                
-            # versions 테이블에 path 컬럼 추가
-            cursor.execute("""
-                SELECT 1 FROM RDB$RELATION_FIELDS 
-                WHERE RDB$RELATION_NAME = 'VERSIONS' 
-                AND RDB$FIELD_NAME = 'PATH'
-            """)
-            if not cursor.fetchone():
-                cursor.execute("""
-                    ALTER TABLE versions 
-                    ADD path VARCHAR(500)
-                """)
-                self.logger.info("versions 테이블에 path 컬럼 추가됨")
-            else:
-                self.logger.info("versions 테이블에 이미 path 컬럼이 존재함")
-            
-            self.connector.commit()
-            return True
-        except Exception as e:
-            self.logger.error(f"경로 컬럼 추가 실패: {str(e)}")
-            return False
-    
-    def add_description_columns(self):
-        """설명 컬럼 추가"""
-        try:
-            cursor = self.connector.cursor()
-            
-            # projects 테이블에 description 컬럼 추가
-            cursor.execute("""
-                ALTER TABLE projects 
-                ADD COLUMN description BLOB SUB_TYPE TEXT
-            """)
-            
-            self.connector.commit()
-            self.logger.info("설명 컬럼 추가 완료")
-            return True
-        except Exception as e:
-            self.logger.error(f"설명 컬럼 추가 실패: {str(e)}")
-            return False
-        
+
     def get_table_structure(self, table_name):
         """테이블 구조 조회"""
         try:

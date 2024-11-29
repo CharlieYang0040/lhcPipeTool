@@ -4,26 +4,27 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QApplication,
                               QPushButton, QLabel, QTextEdit, QComboBox,
                               QFileDialog, QMessageBox, QHBoxLayout,
                               QButtonGroup, QRadioButton, QWidget)
-from PySide6.QtCore import Qt, QEvent, QSettings, QSize, QTimer
-from PySide6.QtGui import QIcon, QPixmap, QImage
+from PySide6.QtCore import Qt, QEvent, QSettings, QTimer
+from PySide6.QtGui import QIcon
 
 from ..utils.logger import setup_logger
 from ..utils.preview_generator import PreviewGenerator
-from ..services.project_service import ProjectService
 from ..services.version_services import (
     ShotVersionService, SequenceVersionService, ProjectVersionService
 )
+from ..services.file_manage_service import FileManageService
 from ..styles.components import get_dialog_style, get_button_style
 
 class NewVersionDialog(QDialog):
-    def __init__(self, db_connector, item_id, item_type, parent=None):
+    def __init__(self, db_connector, project_tree, item_id, item_type, parent=None):
         super().__init__(parent)
         self.item_id = item_id
         self.item_type = item_type
         self.logger = setup_logger(__name__)
         self.preview_generator = PreviewGenerator()
         self.settings = QSettings('LHC', 'PipeTool')
-        self.project_service = ProjectService(db_connector)
+        self.project_tree = project_tree
+        self.file_manager = FileManageService(db_connector)
         self.version_services = {
             "shot": ShotVersionService(db_connector, self.logger),
             "sequence": SequenceVersionService(db_connector, self.logger),
@@ -118,7 +119,10 @@ class NewVersionDialog(QDialog):
         status_buttons_layout.setContentsMargins(0, 0, 0, 0)
         
         self.status_group = QButtonGroup(self)
-        statuses = ["wip", "pub", "retake"]
+        statuses = [
+            "pending", "in_progress", "review", 
+            "approved", "hold", "omitted"
+            ]
         
         for i, status in enumerate(statuses):
             radio = QRadioButton(status)
@@ -281,40 +285,57 @@ class NewVersionDialog(QDialog):
             
     def create_version(self):
         worker_name = self.worker_input.currentText().strip()
-        file_path = os.path.normpath(self.file_path_input.text().strip())
+        source_file = os.path.normpath(self.file_path_input.text().strip())
         
         if not worker_name:
             QMessageBox.warning(self, "경고", "작업자 이름을 입력해주세요!")
             return
             
-        if not file_path:
+        if not source_file:
             QMessageBox.warning(self, "경고", "파일을 선택해주세요!")
             return
-        
-        # 상태 가져오기
-        status = self.status_group.checkedButton().text()
-        
-        # 프리뷰 경로가 비어있으면 자동 생성 시도
-        preview_path = os.path.normpath(self.preview_path_input.text().strip())
-        if not preview_path:
-            preview_path = self.preview_generator.create_preview(file_path)
-        
-        # 작업자 히스토리 저장
-        self.save_worker_history(worker_name)
-        
-        # 버전 생성
-        self.logger.debug(f"item_type: {self.item_type}")
-        success = self.version_services[self.item_type].create_version(
-            item_id=self.item_id,
-            version_number=None,
-            worker_name=worker_name,
-            file_path=file_path,
-            preview_path=preview_path,
-            comment=self.comment_input.toPlainText(),
-            status=status
-        )
+            
+        if not os.path.exists(source_file):
+            QMessageBox.warning(self, "경고", "선택한 파일이 존재하지 않습니다!")
+            return
 
-        if success:
-            self.accept()
-        else:
-            QMessageBox.critical(self, "오류", "버전 생성에 실패했습니다!")
+        try:
+            # 파일 처리
+            file_info = self.file_manager.process_version_file(
+                self.item_type,
+                self.item_id,
+                source_file
+            )
+            
+            # 상태 가져오기
+            status = self.status_group.checkedButton().text()
+            
+            # 프리뷰 경로가 비어있으면 자동 생성 시도
+            preview_path = os.path.normpath(self.preview_path_input.text().strip())
+            if not preview_path:
+                preview_path = self.preview_generator.create_preview(file_info['file_path'])
+            
+            # 작업자 히스토리 저장
+            self.save_worker_history(worker_name)
+            
+            # 버전 생성
+            success = self.version_services[self.item_type].create_version(
+                item_id=self.item_id,
+                version_number=file_info['version_number'],
+                worker_name=worker_name,
+                file_path=file_info['file_path'],
+                render_path=source_file,
+                preview_path=preview_path,
+                comment=self.comment_input.toPlainText(),
+                status=status
+            )
+
+            if success:
+                self.project_tree.refresh()
+                self.accept()
+            else:
+                QMessageBox.critical(self, "오류", "버전 생성에 실패했습니다!")
+                
+        except Exception as e:
+            self.logger.error(f"버전 생성 중 오류 발생: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "오류", f"버전 생성 중 오류가 발생했습니다: {str(e)}")
