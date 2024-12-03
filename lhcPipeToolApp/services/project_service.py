@@ -100,21 +100,23 @@ class ProjectService:
                 raise Exception("프로젝트 생성 실패")
             
         except Exception as e:
+            self.db_connector.rollback()
             self.logger.error(f"프로젝트 생성 실패: {str(e)}")
             raise
 
-    def create_sequence(self, name, project_id, level_path=None, description=None):
+    def create_sequence(self, name, project_id, level_path=None, level_sequence_path=None, description=None):
         """시퀀스 생성"""
         try:
             self.logger.info(f"""시퀀스 생성 시도:
                             이름: {name}
                             프로젝트 ID: {project_id}
                             레벨 경로: {level_path}
+                            레벨 시퀀스 경로: {level_sequence_path}
                             설명: {description}
                         """)
 
             # 모델의 create 메서드 호출
-            sequence_id = self.sequence_model.create(name, project_id, level_path, description)
+            sequence_id = self.sequence_model.create(name, project_id, level_path, level_sequence_path, description)
             if sequence_id:
                 self.db_connector.commit()
                 EventSystem.notify('sequence_updated')  # 이벤트 발생
@@ -122,6 +124,7 @@ class ProjectService:
                 self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
                 return sequence_id
             else:
+                self.db_connector.rollback()
                 raise Exception("시퀀스 생성 실패")
 
         except Exception as e:
@@ -150,6 +153,7 @@ class ProjectService:
                 raise Exception("샷 생성 실패")
 
         except Exception as e:
+            self.db_connector.rollback()
             self.logger.error(f"샷 생성 실패: {str(e)}")
             raise
 

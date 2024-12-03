@@ -33,15 +33,15 @@ class Sequence(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE project_id = ? ORDER BY name"
         return self._fetch_all(query, (project_id,))
     
-    def create(self, name, project_id, level_path=None, description=None):
+    def create(self, name, project_id, level_path=None, level_sequence_path=None, description=None):
         """시퀀스 생성"""
         query = f"""
-            INSERT INTO {self.table_name} (name, project_id, level_path, description, created_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO {self.table_name} (name, project_id, level_path, level_sequence_path, description, created_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             RETURNING ID
         """
         try:
-            result = self.db_connector.fetch_one(query, (name, project_id, level_path, description))
+            result = self.db_connector.fetch_one(query, (name, project_id, level_path, level_sequence_path, description))
             self.logger.debug(f"삽입된 시퀀스 ID: {result['id'] if result and 'id' in result else '없음'}")
             return result['id'] if result and 'id' in result else None
         except Exception as e:

@@ -47,6 +47,17 @@ class NewSequenceDialog(QDialog):
         level_layout.addWidget(self.level_input)
         layout.addLayout(level_layout)
         
+        # 레벨 시퀀스 경로 입력
+        level_sequence_layout = QVBoxLayout()
+        level_sequence_layout.setSpacing(5)
+        level_sequence_label = QLabel("레벨 시퀀스 경로:")
+        self.level_sequence_input = QLineEdit()
+        if self.sequence:
+            self.level_sequence_input.setText(self.sequence[3])
+        level_sequence_layout.addWidget(level_sequence_label)
+        level_sequence_layout.addWidget(self.level_sequence_input)
+        layout.addLayout(level_sequence_layout)
+        
         # 설명 입력
         desc_layout = QVBoxLayout()
         desc_layout.setSpacing(5)
@@ -55,7 +66,7 @@ class NewSequenceDialog(QDialog):
         self.description_input.setMinimumHeight(80)
         self.description_input.setMaximumHeight(120)
         if self.sequence:
-            self.description_input.setText(self.sequence[3])
+            self.description_input.setText(self.sequence[5])
         desc_layout.addWidget(desc_label)
         desc_layout.addWidget(self.description_input)
         layout.addLayout(desc_layout)
@@ -105,6 +116,7 @@ class NewSequenceDialog(QDialog):
                 self.sequence[0],
                 name,
                 self.level_input.text().strip(),
+                self.level_sequence_input.text().strip(),
                 self.description_input.toPlainText().strip()
             )
         else:
@@ -112,6 +124,7 @@ class NewSequenceDialog(QDialog):
                 name, 
                 self.project_id,
                 self.level_input.text().strip(),
+                self.level_sequence_input.text().strip(),
                 self.description_input.toPlainText().strip()
             )
             

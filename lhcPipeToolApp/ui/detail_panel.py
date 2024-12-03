@@ -74,6 +74,7 @@ class DetailPanel(QWidget):
                 '상태': {'type': 'line'},
                 '생성일': {'type': 'line'},
                 '레벨 경로': {'type': 'line', 'buttons': ['복사', '열기']},
+                '레벨 시퀀스 경로': {'type': 'line', 'buttons': ['복사', '열기']},
                 '샷 수': {'type': 'line'}
             },
             'shot': {
@@ -295,6 +296,7 @@ class DetailPanel(QWidget):
                 '이름': item.get('name', ''),
                 '코멘트': item.get('description', ''),
                 '레벨 경로': item.get('level_path', ''),
+                '레벨 시퀀스 경로': item.get('level_sequence_path', ''),
                 '생성일': item.get('created_at', ''),
                 '상태': item.get('status', ''),
                 '샷 수': str(item.get('shot_count', 0))
@@ -388,18 +390,6 @@ class DetailPanel(QWidget):
                         field_widget.setPlainText(str(value))
                     else:
                         field_widget.setText(str(value))
-
-    def _update_item_fields(self, item_type, fields_data):
-        """아이템 필드 업데이트 헬퍼 메서드"""
-        # 모든 필드를 먼저 숨김
-        for field in self.item_fields:
-            self.item_fields[field].parent().hide()  # 필드의 컨테이너를 숨김
-
-        # 해당 타입의 필드만 표시
-        for field in self.type_fields[item_type]:
-            if field in self.item_fields:
-                self.item_fields[field].parent().show()  # 필드의 컨테이너를 표시
-                self.item_fields[field].setText(fields_data.get(field, ''))
 
     def _show_preview(self, preview_path):
         """프리뷰 이미지 표시 헬퍼 메서드"""

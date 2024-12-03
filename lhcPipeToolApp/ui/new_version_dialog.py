@@ -254,10 +254,6 @@ class NewVersionDialog(QDialog):
             file_path = self.file_path_input.text().strip()
             if file_path and os.path.exists(file_path):  # 파일이 실제로 존재하는 경우에만
                 self.logger.debug(f"파일 경로 입력 완료: {file_path}")
-                # 프리뷰 자동 생성
-                preview_path = self.preview_generator.create_preview(file_path)
-                if preview_path:
-                    self.preview_path_input.setText(preview_path)
                     
         except Exception as e:
             self.logger.error(f"파일 경로 처리 중 오류 발생: {str(e)}")
@@ -269,19 +265,6 @@ class NewVersionDialog(QDialog):
         )
         if file_path:
             self.file_path_input.setText(file_path)
-            # 프리뷰 자동 생성
-            preview_path = self.preview_generator.create_preview(file_path)
-            if preview_path:
-                self.preview_path_input.setText(preview_path)
-            else:
-                QMessageBox.warning(self, "경고", "프리뷰 생성에 실패했습니다.")
-
-    def browse_preview(self):
-        preview_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Preview File", "", "Image Files (*.jpg *.png);;Video Files (*.mp4 *.mov)"
-        )
-        if preview_path:
-            self.preview_path_input.setText(preview_path)
             
     def create_version(self):
         worker_name = self.worker_input.currentText().strip()
@@ -312,7 +295,7 @@ class NewVersionDialog(QDialog):
             
             # 프리뷰 경로가 비어있으면 자동 생성 시도
             preview_path = os.path.normpath(self.preview_path_input.text().strip())
-            if not preview_path:
+            if preview_path == ".":
                 preview_path = self.preview_generator.create_preview(file_info['file_path'])
             
             # 작업자 히스토리 저장

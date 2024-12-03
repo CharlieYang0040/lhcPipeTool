@@ -3,6 +3,10 @@ from .base_model import BaseModel
 import hashlib
 
 class Worker(BaseModel):
+    def __init__(self, db_connector):
+        super().__init__(db_connector)
+        self.table_name = "workers"
+        
     def verify_credentials(self, name, hashed_password):
         """사용자 인증"""
         query = """
@@ -19,31 +23,37 @@ class Worker(BaseModel):
             return True
         return False
         
-    def create_worker(self, name, password, department=None, role='user'):
+    def create(self, name, password, department=None, role='user'):
         """새 작업자 생성 (비밀번호 해시화 포함)"""
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        query = """
-            INSERT INTO workers (name, password, department, role)
+        query = f"""
+            INSERT INTO {self.table_name} (name, password, department, role)
             VALUES (?, ?, ?, ?)
+            RETURNING ID
         """
-        return self._execute(query, (name, hashed_password, department, role))
+        try:
+            result = self.db_connector.fetch_one(query, (name, hashed_password, department, role))
+            return result['id'] if result and 'id' in result else None
+        except Exception as e:
+            self.logger.error(f"작업자 생성 중 오류 발생: {str(e)}", exc_info=True)
+            return None
 
     def get_all(self):
         """모든 작업자 조회"""
-        query = "SELECT * FROM workers ORDER BY name"
+        query = f"SELECT * FROM {self.table_name} ORDER BY name"
         return self._fetch_all(query)
 
     def get_by_id(self, worker_id):
         """ID로 작업자 조회"""
-        query = "SELECT * FROM workers WHERE id = ?"
+        query = f"SELECT * FROM {self.table_name} WHERE id = ?"
         return self._fetch_one(query, (worker_id,))
 
     def get_by_name(self, name):
         """이름으로 작업자 조회"""
-        query = "SELECT * FROM workers WHERE name = ?"
+        query = f"SELECT * FROM {self.table_name} WHERE name = ?"
         return self._fetch_one(query, (name,))
 
-    def update(self, worker_id, name=None, email=None, department=None):
+    def update(self, worker_id, name=None, department=None):
         """작업자 정보 수정"""
         updates = []
         params = []
@@ -51,9 +61,6 @@ class Worker(BaseModel):
         if name:
             updates.append("name = ?")
             params.append(name)
-        if email:
-            updates.append("email = ?")
-            params.append(email)
         if department:
             updates.append("department = ?")
             params.append(department)
@@ -63,8 +70,19 @@ class Worker(BaseModel):
             
         params.append(worker_id)
         query = f"""
-            UPDATE workers 
+            UPDATE {self.table_name} 
             SET {', '.join(updates)} 
             WHERE id = ?
         """
         return self._execute(query, tuple(params))
+    
+    def delete(self, worker_id):
+        """작업자 삭제"""
+        query = f"DELETE FROM {self.table_name} WHERE id = ?"
+        return self._execute(query, (worker_id,))
+
+    def reset_password(self, worker_id, new_password):
+        """작업자 비밀번호 초기화"""
+        hashed_password = hashlib.sha256(new_password.encode()).hexdigest()
+        query = f"UPDATE {self.table_name} SET password = ? WHERE id = ?"
+        return self._execute(query, (hashed_password, worker_id))

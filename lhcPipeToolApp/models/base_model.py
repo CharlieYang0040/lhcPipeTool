@@ -20,16 +20,9 @@ class BaseModel:
 
             # DBConnector를 통한 쿼리 실행
             cursor = self.db_connector.execute(query, params)
-
-            # SELECT 문이 아닌 경우에만 커밋
-            if not query.strip().upper().startswith('SELECT'):
-                self.db_connector.commit()
-                self.logger.info("쿼리 실행 성공")
-
             return cursor
         except Exception as e:
             self.logger.error(f"쿼리 실행 실패: {str(e)}", exc_info=True)
-            self.db_connector.rollback()
             raise
 
     def _fetch_one(self, query, params=None):
@@ -39,8 +32,7 @@ class BaseModel:
             self.logger.info("쿼리 실행 성공")
             return result
         except Exception as e:
-            self.logger.error(f"데이터 조회 오류: {e}")
-            self.db_connector.rollback()
+            self.logger.error(f"데이터 조회 오류: {e}", exc_info=True)
             return None
 
     def _fetch_all(self, query, params=None):
@@ -50,15 +42,13 @@ class BaseModel:
             self.logger.info("쿼리 실행 성공")
             return results
         except Exception as e:
-            self.logger.error(f"데이터 조회 오류: {e}")
-            self.db_connector.rollback()
+            self.logger.error(f"데이터 조회 오류: {e}", exc_info=True)
             return []
+        
+    def _commit(self):
+        """커밋"""
+        self.db_connector.commit()
 
-    def get_last_insert_id(self):
-        """마지막으로 삽입된 ID 반환"""
-        try:
-            result = self.db_connector.fetch_one("SELECT LAST_INSERT_ID()")
-            return result[0] if result else None
-        except Exception as e:
-            self.logger.error(f"ID 조회 오류: {e}")
-            return None
+    def _rollback(self):
+        """롤백"""
+        self.db_connector.rollback()

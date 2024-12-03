@@ -22,6 +22,7 @@ class DatabaseMigration:
                 alter_query = f'ALTER TABLE {table_name} ADD "{column_name}" {column_definition}'
                 self.logger.debug(f"실행할 SQL: {alter_query}")
                 self.db_connector.execute(alter_query)
+                self.db_connector.commit()
                 self.logger.info(f"{column_name} 컬럼 추가됨")
                 return True
             else:
@@ -31,6 +32,33 @@ class DatabaseMigration:
         except Exception as e:
             self.logger.error(f"컬럼 추가 중 오류 발생: {e}")
             return False
+
+    def migrate_sequences_table(self):
+        """sequences 테이블 마이그레이션"""
+        migrations = [
+            ("LEVEL_SEQUENCE_PATH", "VARCHAR(500)")
+        ]
+        
+        success = True
+        for column_name, definition in migrations:
+            if not self.add_column_if_not_exists('SEQUENCES', column_name, definition):
+                self.logger.error(f"{column_name} 컬럼 추가 실패")
+                success = False
+                break
+        if success:
+            try:
+                # 기존 레코드에 기본값 설정
+                default_level_sequence_path = '/Content/Sequences'
+                update_sql = """
+                    UPDATE SEQUENCES 
+                    SET LEVEL_SEQUENCE_PATH = ? 
+                    WHERE LEVEL_SEQUENCE_PATH IS NULL
+                """
+                self.db_connector.execute(update_sql, (default_level_sequence_path,))
+                self.db_connector.commit()
+                self.logger.info("기존 레코드 업데이트 완료")
+            except Exception as e:
+                self.logger.error(f"기존 레코드 업데이트 중 오류 발생: {e}")
 
     def migrate_workers_table(self):
         """workers 테이블 마이그레이션"""
@@ -57,6 +85,7 @@ class DatabaseMigration:
                     WHERE PASSWORD IS NULL
                 """
                 self.db_connector.execute(update_sql, (default_password_hash,))
+                self.db_connector.commit()
                 self.logger.info("기존 사용자 데이터 업데이트 완료")
             except Exception as e:
                 self.logger.error(f"기존 데이터 업데이트 중 오류 발생: {e}")
@@ -65,3 +94,4 @@ def run_migrations(db_connector):
     """모든 마이그레이션 실행"""
     migration = DatabaseMigration(db_connector)
     migration.migrate_workers_table()
+    migration.migrate_sequences_table()

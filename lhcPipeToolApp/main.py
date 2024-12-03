@@ -4,6 +4,7 @@ from .config.db_config import DBConfig
 from .database.db_connector import DBConnector
 from .database.table_manager import TableManager
 from .services.database_service import DatabaseService
+from .services.worker_service import WorkerService
 from .ui.main_window import MainWindow
 from .utils.logger import setup_logger
 from .ui.login_dialog import LoginDialog
@@ -37,7 +38,8 @@ def main():
     
     # 로그인 처리
     worker_model = Worker(db_connector)
-    login_dialog = LoginDialog(worker_model)
+    worker_service = WorkerService(worker_model)
+    login_dialog = LoginDialog(worker_service)
     
     if login_dialog.exec() != QDialog.Accepted:
         sys.exit(1)

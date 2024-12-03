@@ -3,6 +3,7 @@ from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
 from ..models.worker import Worker
 from ..utils.db_utils import convert_date_format
 from ..utils.event_system import EventSystem
+
 class BaseVersionService:
     def __init__(self, db_connector, logger):
         self.db_connector = db_connector
@@ -161,7 +162,7 @@ class BaseVersionService:
             cursor = self.db_connector.cursor()
             
             query = """
-                SELECT s.id, s.name, s.project_id, s.level_path, s.description, s.created_at,
+                SELECT s.id, s.name, s.project_id, s.level_path, s.level_sequence_path, s.description, s.created_at,
                     p.name as project_name,
                     (SELECT COUNT(*) FROM SHOTS 
                         WHERE sequence_id = s.id) as shot_count,
@@ -183,11 +184,12 @@ class BaseVersionService:
                 'name': result[1],
                 'project_id': result[2],
                 'level_path': result[3],
-                'description': result[4],
-                'created_at': convert_date_format(result[5]),
-                'project_name': result[6],
-                'shot_count': result[7],
-                'preview_path': result[8]
+                'level_sequence_path': result[4],
+                'description': result[5],
+                'created_at': convert_date_format(result[6]),
+                'project_name': result[7],
+                'shot_count': result[8],
+                'preview_path': result[9]
             }
             
         except Exception as e:
