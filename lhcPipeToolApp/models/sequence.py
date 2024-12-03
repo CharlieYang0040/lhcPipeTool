@@ -33,23 +33,26 @@ class Sequence(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE project_id = ? ORDER BY name"
         return self._fetch_all(query, (project_id,))
     
-    @require_admin
-    def create(self, name, project_id, path=None, description=None):
+    def create(self, name, project_id, level_path=None, description=None):
         """시퀀스 생성"""
         query = f"""
-            INSERT INTO {self.table_name} (name, project_id, path, description, created_at)
+            INSERT INTO {self.table_name} (name, project_id, level_path, description, created_at)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            RETURNING ID
         """
-        cursor = self._execute(query, (name, project_id, path, description))
-        return cursor.lastrowid if cursor else None
+        try:
+            result = self.db_connector.fetch_one(query, (name, project_id, level_path, description))
+            self.logger.debug(f"삽입된 시퀀스 ID: {result['id'] if result and 'id' in result else '없음'}")
+            return result['id'] if result and 'id' in result else None
+        except Exception as e:
+            self.logger.error(f"시퀀스 생성 중 오류 발생: {str(e)}", exc_info=True)
+            raise
 
-    @require_admin
     def update(self, sequence_id, name):
         """시퀀스 정보 수정"""
         query = f"UPDATE {self.table_name} SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
         return self._execute(query, (name, sequence_id))
 
-    @require_admin
     def delete(self, sequence_id):
         """시퀀스 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"

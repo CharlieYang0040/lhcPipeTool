@@ -45,15 +45,11 @@ def main():
     # 로그인 성공 시 AppState에 사용자 정보 저장
     app_state = AppState()
     app_state.current_worker = login_dialog.logged_in_worker
+    logger.info(f"로그인 성공: {app_state.current_worker}")
     
     # UI 생성 및 실행
     window = MainWindow(db_connector)
     window.show()
-    
-    # # 테이블 생성 확인
-    # if not TableManager.check_all_table_exists:
-    #     service = DatabaseService(db_connector, logger)
-    #     service.recreate_tables_and_sequences(window)
 
     # 종료 시 데이터베이스 연결 해제
     app.aboutToQuit.connect(db_connector.close)

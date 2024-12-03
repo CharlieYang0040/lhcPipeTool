@@ -94,11 +94,11 @@ class NewShotDialog(QDialog):
             )
         else:
             success = self.project_service.create_shot(
-                self.sequence_id, name, status, description
+                name, self.sequence_id, status, description
             )
             
         if success:
-            self.project_tree.refresh()
+            self.project_tree.load_projects()
             self.accept()
         else:
             QMessageBox.critical(self, "오류", "샷 저장에 실패했습니다.")

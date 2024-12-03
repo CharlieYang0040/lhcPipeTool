@@ -331,7 +331,7 @@ class NewVersionDialog(QDialog):
             )
 
             if success:
-                self.project_tree.refresh()
+                self.project_tree.load_projects()
                 self.accept()
             else:
                 QMessageBox.critical(self, "오류", "버전 생성에 실패했습니다!")

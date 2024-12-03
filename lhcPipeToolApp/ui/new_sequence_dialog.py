@@ -109,14 +109,14 @@ class NewSequenceDialog(QDialog):
             )
         else:
             success = self.project_service.create_sequence(
-                self.project_id,
                 name, 
+                self.project_id,
                 self.level_input.text().strip(),
                 self.description_input.toPlainText().strip()
             )
             
         if success:
-            self.project_tree.refresh()
+            self.project_tree.load_projects()
             self.accept()
         else:
             QMessageBox.critical(self, "오류", "시퀀스 저장에 실패했습니다!")

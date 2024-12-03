@@ -83,59 +83,71 @@ class ProjectService:
         """프로젝트 생성"""
         try:
             self.logger.info(f"""프로젝트 생성 시도:
-                이름: {name}
-                경로: {path}
-                설명: {description}
-            """)
+                            이름: {name}
+                            경로: {path}
+                            설명: {description}
+                        """)
             
             # 모델의 create 메서드 호출
             project_id = self.project_model.create(name, path, description)
-            EventSystem.notify('project_updated')  # 이벤트 발생
-            
-            self.logger.info(f"프로젝트 생성 성공 - ID: {project_id}")
-            return project_id
+            if project_id:
+                self.db_connector.commit()
+                EventSystem.notify('project_updated')  # 이벤트 발생
+                
+                self.logger.info(f"프로젝트 생성 성공 - ID: {project_id}")
+                return project_id
+            else:
+                raise Exception("프로젝트 생성 실패")
             
         except Exception as e:
             self.logger.error(f"프로젝트 생성 실패: {str(e)}")
             raise
 
-    def create_sequence(self, project_id, name, level_path=None, description=None):
+    def create_sequence(self, name, project_id, level_path=None, description=None):
         """시퀀스 생성"""
         try:
             self.logger.info(f"""시퀀스 생성 시도:
-                프로젝트 ID: {project_id}
-                이름: {name}
-                레벨 경로: {level_path}
-                설명: {description}
-            """)
+                            이름: {name}
+                            프로젝트 ID: {project_id}
+                            레벨 경로: {level_path}
+                            설명: {description}
+                        """)
 
             # 모델의 create 메서드 호출
-            sequence_id = self.sequence_model.create(name, project_id, description)
-            EventSystem.notify('sequence_updated')  # 이벤트 발생
-            
-            self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
-            return sequence_id
+            sequence_id = self.sequence_model.create(name, project_id, level_path, description)
+            if sequence_id:
+                self.db_connector.commit()
+                EventSystem.notify('sequence_updated')  # 이벤트 발생
+                
+                self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
+                return sequence_id
+            else:
+                raise Exception("시퀀스 생성 실패")
 
         except Exception as e:
             self.logger.error(f"시퀀스 생성 실패: {str(e)}")
             raise
 
-    def create_shot(self, sequence_id, name, status="pending", description=None):
+    def create_shot(self, name, sequence_id, status="pending", description=None):
         """샷 생성"""
         try:
             self.logger.info(f"""샷 생성 시도:
-                시퀀스 ID: {sequence_id}
-                이름: {name}
-                상태: {status}
-                설명: {description}
-            """)
+                            이름: {name}
+                            시퀀스 ID: {sequence_id}
+                            상태: {status}
+                            설명: {description}
+                        """)
 
             # 모델의 create 메서드 호출
             shot_id = self.shot_model.create(name, sequence_id, description, status)
-            EventSystem.notify('shot_updated')  # 이벤트 발생
-            
-            self.logger.info(f"샷 생성 성공 - ID: {shot_id}")
-            return shot_id
+            if shot_id:
+                self.db_connector.commit()
+                EventSystem.notify('shot_updated')  # 이벤트 발생
+                
+                self.logger.info(f"샷 생성 성공 - ID: {shot_id}")
+                return shot_id
+            else:
+                raise Exception("샷 생성 실패")
 
         except Exception as e:
             self.logger.error(f"샷 생성 실패: {str(e)}")
@@ -172,7 +184,7 @@ class ProjectService:
         return self.sequence_model.get_by_id(sequence_id)
 
     def get_shot_by_id(self, shot_id):
-        """샷 정 조회"""
+        """샷 정보 조회"""
         return self.shot_model.get_by_id(shot_id)
 
     def get_all_projects(self):

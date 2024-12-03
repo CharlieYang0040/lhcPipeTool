@@ -114,7 +114,7 @@ class NewProjectDialog(QDialog):
             )
             
         if success:
-            self.project_tree.refresh()
+            self.project_tree.load_projects()
             self.accept()
         else:
             QMessageBox.critical(self, "오류", "프로젝트 저장에 실패했습니다!")

@@ -36,14 +36,9 @@ class DBConnector:
                     cursor.execute(query, named_parameters=params)  # 이름 기반 파라미터
             else:
                 cursor.execute(query)
-            
-            # SELECT 문인 경우 결과 반환
-            if query.strip().upper().startswith('SELECT'):
-                return cursor
-            # INSERT, UPDATE, DELETE 등의 경우 영향받은 행 수 반환
-            else:
-                self.commit()
-                return cursor.rowcount
+
+            return cursor
+
         except Exception as e:
             self.rollback()
             self.logger.error(f"쿼리 실행 실패: {str(e)}\n쿼리: {query}\n파라미터: {params}", exc_info=True)

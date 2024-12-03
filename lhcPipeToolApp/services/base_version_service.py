@@ -19,13 +19,15 @@ class BaseVersionService:
                       file_path=None, render_path=None, preview_path=None, comment=None, status=None):
         """새 버전 생성"""
         try:
-            self.logger.info(f"버전 생성 시작 - {self.get_foreign_key()}: {item_id}")
-            
-            # 작업자 처리
-            worker_name = worker_name or 'system'
-            worker = self._get_or_create_worker(worker_name)
-            if not worker:
-                return False
+            self.logger.info(f"""버전 생성 시도: 
+                            {self.get_foreign_key()}: {item_id}
+                            worker_name: {worker_name}
+                            file_path: {file_path}
+                            render_path: {render_path}
+                            preview_path: {preview_path}
+                            comment: {comment}
+                            status: {status}
+                        """)
 
             # 버전 번호 처리
             if version_number is None:
@@ -34,32 +36,40 @@ class BaseVersionService:
             # 버전 이름 생성
             version_name = f"v{version_number:03d}"
 
+            # 작업자 처리
+            worker = self._get_worker(worker_name)
+            if not worker:
+                raise Exception("작업자 조회 실패")
+
             # 새 버전 생성
             create_data = {
                 'item_id': item_id,
                 'version_name': version_name,
                 'version_number': version_number,
-                'worker_id': worker[0],
+                'worker_id': worker['id'],
                 'file_path': file_path,
                 'render_path': render_path,
                 'preview_path': preview_path,
                 'comment': comment,
                 'status': status
             }
-            EventSystem.notify('version_updated')  # 이벤트 발생
-            return self.version_models[self.get_foreign_key()].create(**create_data)
+            result = self.version_models[self.get_foreign_key()].create(**create_data)
+            if result:
+                self.db_connector.commit()
+                EventSystem.notify('version_updated')  # 이벤트 발생
+                return result
+            else:
+                raise Exception("버전 생성 실패")
             
         except Exception as e:
             self.logger.error(f"버전 생성 중 예외 발생: {str(e)}", exc_info=True)
             return False
 
-    def _get_or_create_worker(self, worker_name):
-        """작업자 조회 또는 생성"""
+    def _get_worker(self, worker_name):
+        """작업자 조회"""
         worker = self.worker_model.get_by_name(worker_name)
         if not worker:
-            if not self.worker_model.create(worker_name):
-                return None
-            worker = self.worker_model.get_by_name(worker_name)
+            return None
         return worker
 
     def _get_next_version_number(self, item_id):

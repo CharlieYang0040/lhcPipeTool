@@ -33,28 +33,31 @@ class Shot(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE sequence_id = ? ORDER BY name"
         return self._fetch_all(query, (sequence_id,))
     
-    @require_admin
-    def create(self, name, sequence_id, description=None, status="pending"):
+    def create(self, name, sequence_id, status="pending", description=None):
         """샷 생성"""
         query = f"""
             INSERT INTO {self.table_name} (name, sequence_id, status, description, created_at)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            RETURNING ID
         """
-        cursor = self._execute(query, (name, sequence_id, status, description))
-        return cursor.lastrowid if cursor else None
+        try:
+            result = self.db_connector.fetch_one(query, (name, sequence_id, status, description))
+            self.logger.debug(f"삽입된 샷 ID: {result['id'] if result and 'id' in result else '없음'}")
+            return result['id'] if result and 'id' in result else None
+        except Exception as e:
+            self.logger.error(f"샷 생성 중 오류 발생: {str(e)}", exc_info=True)
+            raise
 
     def update_status(self, shot_id, status):
         """샷 상태 업데이트"""
         query = f"UPDATE {self.table_name} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
         return self._execute(query, (status, shot_id))
 
-    @require_admin
     def delete(self, shot_id):
         """샷 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"
         return self._execute(query, (shot_id,))
-    
-    @require_admin
+
     def update(self, shot_id, name=None, description=None, status=None):
         """샷 정보 수정"""
         updates = []

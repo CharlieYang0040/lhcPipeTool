@@ -1,7 +1,8 @@
 """메인 윈도우"""
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
-    QDialog, QMessageBox, QToolBar, QStyle, QApplication
+    QDialog, QMessageBox, QToolBar, QStyle, QApplication,
+    QLabel, QSizePolicy
 )
 from .project_tree import ProjectTreeWidget
 from .version_table import VersionTableWidget
@@ -14,13 +15,16 @@ from ..services.version_services import (ShotVersionService, SequenceVersionServ
 
 from ..database.table_manager import TableManager
 from ..utils.logger import setup_logger
+from ..utils.decorators import require_admin
 from ..config.app_state import AppState
+from ..styles.components import get_toolbar_style
 
 class MainWindow(QMainWindow):
     def __init__(self, db_connector):
         super().__init__()
         self.db_connector = db_connector
         self.logger = setup_logger(__name__)
+        self.require_admin = require_admin(db_connector)
         self.app_state = AppState()
         if not self.db_connector.connection and not self.db_connector.connect():
             self.logger.error("데이터베이스 연결 실패")
@@ -74,27 +78,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(toolbar)
         
         # 툴바 스타일 수정
-        toolbar.setStyleSheet("""
-            QToolBar {
-                background-color: #15151e;
-                border: none;
-                spacing: 5px;
-                padding: 5px;
-            }
-            QToolButton {
-                background-color: transparent;
-                border: none;
-                border-radius: 4px;
-                padding: 5px;
-                color: #e0e0e0;
-            }
-            QToolButton:hover {
-                background-color: #1f1f2c;
-            }
-            QToolButton:pressed {
-                background-color: #2d2d3d;
-            }
-        """)
+        toolbar.setStyleSheet(get_toolbar_style())
         
         # 새로고침 버튼
         refresh_action = toolbar.addAction("새로고침")
@@ -110,6 +94,23 @@ class MainWindow(QMainWindow):
         clear_db_action = toolbar.addAction("DB 초기화")
         clear_db_action.setIcon(self.style().standardIcon(QStyle.SP_TrashIcon))
         clear_db_action.triggered.connect(self.clear_database)
+        
+        # 툴바 오른쪽에 로그인 정보 추가
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        toolbar.addWidget(spacer)
+        
+        # 로그인 정보 레이블 추가
+        self.login_info = QLabel()
+        self.login_info.setStyleSheet("""
+            QLabel {
+                color: #e0e0e0;
+                padding: 0 10px;
+                font-size: 12px;
+            }
+        """)
+        self.update_login_info()  # 로그인 정보 업데이트
+        toolbar.addWidget(self.login_info)
         
         # 스플리터 생성
         splitter = QSplitter()
@@ -265,6 +266,7 @@ class MainWindow(QMainWindow):
         """데이터베이스 내용 출력"""
         self.database_service.show_database_contents(self)
 
+    @require_admin
     def clear_database(self):
         """데이터베이스 초기화"""
         if self.database_service.clear_database(self):
@@ -284,3 +286,10 @@ class MainWindow(QMainWindow):
     def handle_item_type_changed(self, item_type, item_id):
         """아이템 타입 변경 처리"""
         self.detail_panel.show_item_details(item_type, item_id)
+
+    def update_login_info(self):
+        """로그인 정보 업데이트"""
+        user = self.app_state.current_worker
+        if user:
+            info_text = f"사용자: {user['name']} ({user['id']}) | 권한: {user['role']}"
+            self.login_info.setText(info_text)

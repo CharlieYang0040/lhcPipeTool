@@ -28,23 +28,26 @@ class Project(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE name = ?"
         return self._fetch_one(query, (name,))
         
-    @require_admin
     def create(self, name, path=None, description=None):
         """프로젝트 생성"""
         query = f"""
             INSERT INTO {self.table_name} (name, path, description, created_at)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            RETURNING ID
         """
-        cursor = self._execute(query, (name, path, description))
-        return cursor.lastrowid if cursor else None
+        try:
+            result = self.db_connector.fetch_one(query, (name, path, description))
+            self.logger.debug(f"삽입된 프로젝트 ID: {result['id'] if result and 'id' in result else '없음'}")
+            return result['id'] if result and 'id' in result else None
+        except Exception as e:
+            self.logger.error(f"프로젝트 생성 중 오류 발생: {str(e)}", exc_info=True)
+            raise
 
-    @require_admin
     def update(self, project_id, name):
         """프로젝트 정보 수정"""
         query = f"UPDATE {self.table_name} SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
         return self._execute(query, (name, project_id))
 
-    @require_admin
     def delete(self, project_id):
         """프로젝트 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"

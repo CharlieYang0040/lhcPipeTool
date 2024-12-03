@@ -163,6 +163,12 @@ class VersionTableWidget(QWidget):
         item_type = self.app_state.current_item_type
         item_id = self.app_state.current_item_id
         
+        # 기본값 설정
+        if item_type == None:
+            item_type = 'project'
+        if item_id == None:
+            item_id = 1
+            
         self.table.setRowCount(0)
 
         try:

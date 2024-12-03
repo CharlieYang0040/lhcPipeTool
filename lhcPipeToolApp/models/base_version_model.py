@@ -12,30 +12,17 @@ class BaseVersionModel(BaseModel):
     def create(self, version_name, item_id, version_number, worker_id, file_path=None, 
               preview_path=None, render_path=None, comment=None, status='pending'):
         """새 버전 생성"""
-        self.logger.info(f"""{self.item_type} 버전 생성 시도:
-            name: {version_name}
-            {self.get_foreign_key()}: {item_id}
-            version_number: {version_number}
-            worker_id: {worker_id}
-            file_path: {file_path}
-            preview_path: {preview_path}
-            render_path: {render_path}
-            comment: {comment}
-            status: {status}
-        """)
-
-        # 이전 버전들의 is_latest를 False로 설정
         self._update_previous_versions(item_id)
-        
         query = f"""
             INSERT INTO {self.table_name}
             (NAME, {self.get_foreign_key()}, VERSION_NUMBER, WORKER_ID, STATUS, FILE_PATH, 
              PREVIEW_PATH, RENDER_PATH, COMMENT, IS_LATEST) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING ID
         """
         
         try:
-            result = self._execute(query, (
+            result = self.db_connector.fetch_one(query, (
                 version_name,
                 item_id,
                 version_number,
@@ -47,11 +34,8 @@ class BaseVersionModel(BaseModel):
                 comment,
                 True  # is_latest
             ))
-            if result:
-                self.logger.info(f"{self.item_type} 버전 생성 성공")
-            else:
-                self.logger.error(f"{self.item_type} 버전 생성 실패")
-            return result
+            self.logger.debug(f"삽입된 버전 ID: {result['id'] if result and 'id' in result else '없음'}")
+            return result['id'] if result and 'id' in result else None
         except Exception as e:
             self.logger.error(f"{self.item_type} 버전 생성 중 오류 발생: {str(e)}", exc_info=True)
             return False
