@@ -1,11 +1,11 @@
 """데이터베이스 유틸리티 함수"""
 from ..utils.logger import setup_logger
 
-def check_table_schema(connector, table_name):
+def check_table_schema(db_connector, table_name):
     """테이블 스키마 확인"""
     logger = setup_logger(__name__)
     try:
-        cursor = connector.cursor()
+        cursor = db_connector.cursor()
         cursor.execute(f"""
             SELECT r.RDB$FIELD_NAME, f.RDB$FIELD_TYPE, f.RDB$FIELD_LENGTH, 
                    r.RDB$NULL_FLAG, r.RDB$DEFAULT_SOURCE
@@ -25,11 +25,11 @@ def check_table_schema(connector, table_name):
         logger.error(f"스키마 확인 실패: {str(e)}", exc_info=True)
         return None
 
-def check_table_exists(connector, table_name):
+def check_table_exists(db_connector, table_name):
     """테이블 존재 여부 확인"""
     logger = setup_logger(__name__)
     try:
-        cursor = connector.cursor()
+        cursor = db_connector.cursor()
         cursor.execute("""
             SELECT 1 FROM RDB$RELATIONS 
             WHERE RDB$RELATION_NAME = ?
@@ -41,11 +41,11 @@ def check_table_exists(connector, table_name):
         logger.error(f"테이블 존재 여부 확인 실패: {str(e)}", exc_info=True)
         return False
 
-def check_foreign_keys(connector, table_name):
+def check_foreign_keys(db_connector, table_name):
     """외래 키 제약조건 확인"""
     logger = setup_logger(__name__)
     try:
-        cursor = connector.cursor()
+        cursor = db_connector.cursor()
         cursor.execute("""
             SELECT rc.RDB$CONSTRAINT_NAME,
                    rc.RDB$RELATION_NAME,
@@ -73,11 +73,11 @@ def check_foreign_keys(connector, table_name):
         logger.error(f"외래 키 제약조건 확인 실패: {str(e)}", exc_info=True)
         return None
 
-def get_table_row_count(connector, table_name):
+def get_table_row_count(db_connector, table_name):
     """테이블의 레코드 수 조회"""
     logger = setup_logger(__name__)
     try:
-        cursor = connector.cursor()
+        cursor = db_connector.cursor()
         cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
         count = cursor.fetchone()[0]
         logger.info(f"테이블 {table_name}의 레코드 수: {count}")
@@ -86,11 +86,11 @@ def get_table_row_count(connector, table_name):
         logger.error(f"레코드 수 조회 실패: {str(e)}", exc_info=True)
         return None
 
-def check_database_connection(connector):
+def check_database_connection(db_connector):
     """데이터베이스 연결 상태 확인"""
     logger = setup_logger(__name__)
     try:
-        cursor = connector.cursor()
+        cursor = db_connector.cursor()
         cursor.execute("SELECT CURRENT_TIMESTAMP FROM RDB$DATABASE")
         result = cursor.fetchone()
         logger.info("데이터베이스 연결 상태: 정상")

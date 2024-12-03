@@ -1,50 +1,56 @@
 """시퀀스 모델"""
 from .base_model import BaseModel
-from ..database.table_manager import TableManager
+from ..utils.decorators import require_admin
 
 class Sequence(BaseModel):
-    def create(self, name, project_id, description=None):
-        """시퀀스 생성
-        Args:
-            name (str): 시퀀스 이름
-            project_id (int): 프로젝트 ID
-            description (str, optional): 시퀀스 설명
-        """
-        query = """
-            INSERT INTO sequences (name, project_id, description) 
-            VALUES (?, ?, ?)
-        """
-
-        # 테이블 구조 조회
-        table_manager = TableManager(self.connector)
-        table_structure = table_manager.get_table_structure("SEQUENCES")
-        self.logger.info(f"테이블 구조: {table_structure}")
-        return self._execute(query, (name, project_id, description))
-
-    def get_by_project(self, project_id):
-        """프로젝트별 시퀀스 조회"""
-        query = """
-            SELECT * FROM sequences 
-            WHERE project_id = ? 
-            ORDER BY name
-        """
-        return self._fetch_all(query, (project_id,))
-
-    def update(self, sequence_id, name):
-        """시퀀스 정보 수정"""
-        query = """
-            UPDATE sequences 
-            SET name = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        """
-        return self._execute(query, (name, sequence_id))
-
-    def delete(self, sequence_id):
-        """시퀀스 삭제"""
-        query = "DELETE FROM sequences WHERE id = ?"
-        return self._execute(query, (sequence_id,))
+    def __init__(self, db_connector):
+        super().__init__(db_connector)
+        self.require_admin = require_admin(db_connector)
+        self.table_name = 'sequences'
+        self.item_type = 'sequence'
+        
+    @property
+    def admin_required_methods(self):
+        return [self.create, self.update, self.delete]
+    
+    def get_all(self):
+        """모든 시퀀스 조회"""
+        query = f"SELECT * FROM {self.table_name} ORDER BY name"
+        return self._fetch_all(query)
 
     def get_by_id(self, sequence_id):
         """ID로 시퀀스 조회"""
-        query = "SELECT * FROM sequences WHERE id = ?"
+        query = f"SELECT * FROM {self.table_name} WHERE id = ?"
         return self._fetch_one(query, (sequence_id,))
+
+    def get_by_name(self, name):
+        """이름으로 시퀀스 조회"""
+        query = f"SELECT * FROM {self.table_name} WHERE name = ?"
+        return self._fetch_one(query, (name,))
+        
+    def get_by_project(self, project_id):
+        """프로젝트별 시퀀스 조회"""
+        query = f"SELECT * FROM {self.table_name} WHERE project_id = ? ORDER BY name"
+        return self._fetch_all(query, (project_id,))
+    
+    @require_admin
+    def create(self, name, project_id, path=None, description=None):
+        """시퀀스 생성"""
+        query = f"""
+            INSERT INTO {self.table_name} (name, project_id, path, description, created_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        cursor = self._execute(query, (name, project_id, path, description))
+        return cursor.lastrowid if cursor else None
+
+    @require_admin
+    def update(self, sequence_id, name):
+        """시퀀스 정보 수정"""
+        query = f"UPDATE {self.table_name} SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        return self._execute(query, (name, sequence_id))
+
+    @require_admin
+    def delete(self, sequence_id):
+        """시퀀스 삭제"""
+        query = f"DELETE FROM {self.table_name} WHERE id = ?"
+        return self._execute(query, (sequence_id,))

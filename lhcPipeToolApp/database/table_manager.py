@@ -3,8 +3,8 @@ from ..utils.logger import setup_logger
 from ..schemas.table_schemas import TABLES
 
 class TableManager:
-    def __init__(self, connector):
-        self.connector = connector
+    def __init__(self, db_connector):
+        self.db_connector = db_connector
         self.logger = setup_logger(__name__)
     
     def create_table(self, table_name, columns=None):
@@ -14,12 +14,12 @@ class TableManager:
             raise ValueError(f"Unknown table: {table_name}")
             
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             sql = TABLES[table_name]
             self.logger.debug(f"실행할 SQL:\n{sql}")
             
             cursor.execute(sql)
-            self.connector.commit()
+            self.db_connector.commit()
             self.logger.info(f"테이블 생성 성공: {table_name}")
             return True
         except Exception as e:
@@ -60,7 +60,7 @@ class TableManager:
     def recreate_table(self, table_name):
         """테이블 재생성"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             self.logger.info(f"테이블 삭제 시도: {table_name}")
             cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
             self.logger.info(f"테이블 삭제 완료: {table_name}")
@@ -68,7 +68,7 @@ class TableManager:
             self.logger.info(f"테이블 생성 시도: {table_name}")
             self.logger.info(f"실행할 SQL: {TABLES[table_name]}")
             cursor.execute(TABLES[table_name])
-            self.connector.commit()
+            self.db_connector.commit()
             self.logger.info(f"테이블 생성 완료: {table_name}")
             return True
         except Exception as e:
@@ -78,7 +78,7 @@ class TableManager:
     def initialize_settings(self):
         """기본 설정값 초기화"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             # 먼저 설정이 이미 존재하는지 확인
             cursor.execute("""
                 SELECT 1 FROM settings 
@@ -91,7 +91,7 @@ class TableManager:
                     INSERT INTO settings (setting_key, setting_value, description)
                     VALUES ('render_root', 'D:/WORKDATA/lhcPipeTool/TestSequence', '렌더 파일 저장 경로')
                 """)
-                self.connector.commit()
+                self.db_connector.commit()
                 self.logger.info("기본 설정값 초기화 완료")
             else:
                 self.logger.info("설정값이 이미 존재함")
@@ -103,7 +103,7 @@ class TableManager:
     def get_table_structure(self, table_name):
         """테이블 구조 조회"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             cursor.execute("""
                 SELECT RDB$FIELD_NAME 
                 FROM RDB$RELATION_FIELDS 
@@ -146,7 +146,7 @@ class TableManager:
         ]
         
         for table_name in TABLES:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             cursor.execute(f"""
                 SELECT 1 FROM RDB$RELATIONS 
                 WHERE RDB$RELATION_NAME = '{table_name.upper()}'

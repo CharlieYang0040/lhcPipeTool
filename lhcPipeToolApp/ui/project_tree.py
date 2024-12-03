@@ -38,10 +38,10 @@ class ProjectTreeWidget(QTreeWidget):
         self.installEventFilter(self)
         
         # 이벤트 구독
-        EventSystem.subscribe('project_updated', self.refresh)
-        EventSystem.subscribe('sequence_updated', self.refresh)
-        EventSystem.subscribe('shot_updated', self.refresh)
-        EventSystem.subscribe('version_updated', self.refresh)
+        EventSystem.subscribe('project_updated', self.load_projects)
+        EventSystem.subscribe('sequence_updated', self.load_projects)
+        EventSystem.subscribe('shot_updated', self.load_projects)
+        EventSystem.subscribe('version_updated', self.load_projects)
 
     def setup_ui(self):
         """UI 초기화"""
@@ -75,64 +75,53 @@ class ProjectTreeWidget(QTreeWidget):
         """프로젝트 목록 로드"""
         self.clear()
         try:
-            cursor = self.project_service.connector.cursor()
-            
-            # 프로젝트 조회
-            cursor.execute("SELECT * FROM projects ORDER BY name")
-            projects = cursor.fetchall()
+            # 서비스 레이어를 통해 프로젝트 목록을 가져옴
+            projects = self.project_service.get_all_projects()  # 딕셔너리 리스트
             
             self.setSelectionMode(QTreeWidget.ExtendedSelection)
 
             for project in projects:
-                latest_version = self.version_services["project"].get_latest_version(project[0])
-                preview_path = latest_version[7] if latest_version else None
+                project_id = project['id']
+                project_name = project['name']
+                
+                latest_version = self.version_services["project"].get_latest_version(project_id)
+                preview_path = latest_version.get('preview_path') if latest_version else None
+                
                 project_item = QTreeWidgetItem([""])
-                project_item.setData(0, Qt.UserRole, ("project", project[0]))
-                project_widget = CustomTreeItemWidget(project[1], "project", preview_path)
+                project_item.setData(0, Qt.UserRole, ("project", project_id))
+                project_widget = CustomTreeItemWidget(project_name, "project", preview_path)
                 self.addTopLevelItem(project_item)
                 self.setItemWidget(project_item, 0, project_widget)
                 
-                # 시퀀스 조회
-                cursor.execute("""
-                    SELECT * FROM sequences 
-                    WHERE project_id = ? 
-                    ORDER BY name
-                """, (project[0],))
-                sequences = cursor.fetchall()
+                # 시퀀스 조회 via ProjectService
+                sequences = self.project_service.sequence_model.get_by_project(project_id)  # 딕셔너리 리스트
                 
                 for sequence in sequences:
-                    latest_version = self.version_services["sequence"].get_latest_version(sequence[0])
-                    preview_path = latest_version[7] if latest_version else None
+                    sequence_id = sequence['id']
+                    sequence_name = sequence['name']
+                    
+                    latest_version = self.version_services["sequence"].get_latest_version(sequence_id)
+                    preview_path = latest_version.get('preview_path') if latest_version else None
+                    
                     seq_item = QTreeWidgetItem([""])
-                    seq_item.setData(0, Qt.UserRole, ("sequence", sequence[0]))
-                    seq_widget = CustomTreeItemWidget(sequence[1], "sequence", preview_path)
+                    seq_item.setData(0, Qt.UserRole, ("sequence", sequence_id))
+                    seq_widget = CustomTreeItemWidget(sequence_name, "sequence", preview_path)
                     project_item.addChild(seq_item)
                     self.setItemWidget(seq_item, 0, seq_widget)
                     
-                    # 샷 조회
-                    cursor.execute("""
-                        SELECT s.*, v.preview_path 
-                        FROM shots s 
-                        LEFT JOIN (
-                            SELECT shot_id, preview_path, created_at
-                            FROM versions v1
-                            WHERE created_at = (
-                                SELECT MAX(created_at)
-                                FROM versions v2
-                                WHERE v2.shot_id = v1.shot_id
-                            )
-                        ) v ON s.id = v.shot_id 
-                        WHERE s.sequence_id = ? 
-                        ORDER BY s.name
-                    """, (sequence[0],))
-                    shots = cursor.fetchall()
+                    # 샷 조회 via ProjectService
+                    shots = self.project_service.shot_model.get_by_sequence(sequence_id)  # 딕셔너리 리스트
                     
                     for shot in shots:
-                        latest_version = self.version_services["shot"].get_latest_version(shot[0])
-                        preview_path = latest_version[7] if latest_version else None
+                        shot_id = shot['id']
+                        shot_name = shot['name']
+                        
+                        latest_version = self.version_services["shot"].get_latest_version(shot_id)
+                        preview_path = latest_version.get('preview_path') if latest_version else None
+                        
                         shot_item = QTreeWidgetItem([""])
-                        shot_item.setData(0, Qt.UserRole, ("shot", shot[0]))
-                        shot_widget = CustomTreeItemWidget(shot[1], "shot", preview_path)
+                        shot_item.setData(0, Qt.UserRole, ("shot", shot_id))
+                        shot_widget = CustomTreeItemWidget(shot_name, "shot", preview_path)
                         seq_item.addChild(shot_item)
                         self.setItemWidget(shot_item, 0, shot_widget)
                 
@@ -176,7 +165,7 @@ class ProjectTreeWidget(QTreeWidget):
 
             if dialog.exec_():
                 self.logger.info("새 프로젝트 생성 성공")
-                self.refresh()
+                self.load_projects()
                 return True
                 
             self.logger.debug("프로젝트 생성 취소됨")
@@ -194,7 +183,7 @@ class ProjectTreeWidget(QTreeWidget):
             
             if dialog.exec_():
                 self.logger.info("새 시퀀스 생성 성공")
-                self.refresh()
+                self.load_projects()
                 return True
                 
             self.logger.debug("시퀀스 생성 취소됨")
@@ -212,7 +201,7 @@ class ProjectTreeWidget(QTreeWidget):
             
             if dialog.exec_():
                 self.logger.info("새 샷 생성 성공")
-                self.refresh()
+                self.load_projects()
                 return True
                 
             self.logger.debug("샷 생성 취소됨")
@@ -241,6 +230,26 @@ class ProjectTreeWidget(QTreeWidget):
             
         except Exception as e:
             self.logger.error(f"버전 추가 실패: {str(e)}", exc_info=True)
+
+    def delete_selected_items(self):
+        """선택된 아이템들 삭제"""
+        self.logger.debug(f"선택된 아이템들 : {self.selectedItems()}")
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+        
+        for item in selected_items:
+            item_type, item_id = item.data(0, Qt.UserRole)
+            self.delete_item(item, item_type, item_id)
+
+    def delete_item(self, item, item_type, item_id):
+        """아이템 삭제"""
+        if item_type == "project":
+            self.delete_project(item, item_id)
+        elif item_type == "sequence":
+            self.delete_sequence(item, item_id)
+        elif item_type == "shot":
+            self.delete_shot(item, item_id)
             return False
 
     def delete_project(self, item, project_id):
@@ -319,29 +328,3 @@ class ProjectTreeWidget(QTreeWidget):
                 return True
             
         return super().eventFilter(obj, event)
-
-    def refresh(self):
-        """프로젝트 트리 새로고침"""
-        self.load_projects()
-
-    def delete_selected_items(self):
-        """선택된 아이템들 삭제"""
-        self.logger.debug(f"선택된 아이템들 : {self.selectedItems()}")
-        selected_items = self.selectedItems()
-        if not selected_items:
-            return
-        
-        for item in selected_items:
-            item_type, item_id = item.data(0, Qt.UserRole)
-            self.delete_item(item, item_type, item_id)
-
-    def delete_item(self, item, item_type, item_id):
-        """아이템 삭제"""
-        if item_type == "project":
-            self.delete_project(item, item_id)
-        elif item_type == "sequence":
-            self.delete_sequence(item, item_id)
-        elif item_type == "shot":
-            self.delete_shot(item, item_id)
-
-        

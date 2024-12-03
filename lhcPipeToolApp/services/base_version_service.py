@@ -4,16 +4,16 @@ from ..models.worker import Worker
 from ..utils.db_utils import convert_date_format
 from ..utils.event_system import EventSystem
 class BaseVersionService:
-    def __init__(self, connector, logger):
-        self.connector = connector
+    def __init__(self, db_connector, logger):
+        self.db_connector = db_connector
         self.logger = logger
         self.table_name = None  # 하위 클래스에서 정의
         self.version_models = {
-            "shot_id": ShotVersion(connector),
-            "sequence_id": SequenceVersion(connector),
-            "project_id": ProjectVersion(connector)
+            "shot_id": ShotVersion(db_connector),
+            "sequence_id": SequenceVersion(db_connector),
+            "project_id": ProjectVersion(db_connector)
         }
-        self.worker_model = Worker(connector)
+        self.worker_model = Worker(db_connector)
 
     def create_version(self, item_id, version_number=None, worker_name=None, 
                       file_path=None, render_path=None, preview_path=None, comment=None, status=None):
@@ -87,7 +87,7 @@ class BaseVersionService:
     def get_all_versions(self, item_id):
         """모든 버전 조회"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             
             query = f"""
                 SELECT 
@@ -113,7 +113,7 @@ class BaseVersionService:
     def get_project_details(self, project_id):
         """프로젝트 상세 정보 조회"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             
             query = """
                 SELECT p.*,
@@ -148,7 +148,7 @@ class BaseVersionService:
     def get_sequence_details(self, sequence_id):
         """시퀀스 상세 정보 조회"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             
             query = """
                 SELECT s.id, s.name, s.project_id, s.level_path, s.description, s.created_at,
@@ -188,7 +188,7 @@ class BaseVersionService:
     def get_shot_details(self, shot_id):
         """샷 상세 정보 조회"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             
             query = """
                 SELECT sh.*,
@@ -230,7 +230,7 @@ class BaseVersionService:
     def get_version_details(self, version_id):
         """버전 상세 정보 조회"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             
             query = f"""
                 SELECT 
@@ -290,7 +290,7 @@ class BaseVersionService:
     def get_render_root(self):
         """렌더 파일 저장 루트 경로"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             cursor.execute("SELECT setting_value FROM settings WHERE setting_key = 'render_root'")
             result = cursor.fetchone()
             return result[0] if result else "D:/WORKDATA/lhcPipeTool/TestSequence"

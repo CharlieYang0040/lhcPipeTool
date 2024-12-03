@@ -1,55 +1,60 @@
 """샷 모델"""
 from .base_model import BaseModel
-from ..database.table_manager import TableManager
+from ..utils.decorators import require_admin
 
 class Shot(BaseModel):
-    def create(self, name, sequence_id, description=None, status="pending"):
-        """샷 생성
-        Args:
-            name (str): 샷 이름
-            sequence_id (int): 시퀀스 ID
-            description (str, optional): 샷 설명
-            status (str, optional): 샷 상태 (기본값: "pending")
-        """
-        query = """
-            INSERT INTO shots (name, sequence_id, description, status) 
-            VALUES (?, ?, ?, ?)
-        """
-        # 테이블 구조 조회
-        table_manager = TableManager(self.connector)
-        table_structure = table_manager.get_table_structure("SHOTS")
-        self.logger.info(f"테이블 구조: {table_structure}")
+    def __init__(self, db_connector):
+        super().__init__(db_connector)
+        self.require_admin = require_admin(db_connector)
+        self.table_name = 'shots'
+        self.item_type = 'shot'
         
-        return self._execute(query, (str(name), sequence_id, description, status))
+    @property
+    def admin_required_methods(self):
+        return [self.create, self.update, self.delete]
 
-    def get_by_sequence(self, sequence_id):
-        """시퀀스별 샷 조회"""
-        query = """
-            SELECT * FROM shots 
-            WHERE sequence_id = ? 
-            ORDER BY name
-        """
-        return self._fetch_all(query, (sequence_id,))
-
-    def update_status(self, shot_id, status):
-        """샷 상태 업데이트"""
-        query = """
-            UPDATE shots 
-            SET status = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        """
-        return self._execute(query, (status, shot_id))
+    def get_all(self):
+        """모든 샷 조회"""
+        query = f"SELECT * FROM {self.table_name} ORDER BY name"
+        return self._fetch_all(query)
 
     def get_by_id(self, shot_id):
         """ID로 샷 조회"""
-        query = "SELECT * FROM shots WHERE id = ?"
+        query = f"SELECT * FROM {self.table_name} WHERE id = ?"
         return self._fetch_one(query, (shot_id,))
 
+    def get_by_name(self, name):
+        """이름으로 샷 조회"""
+        query = f"SELECT * FROM {self.table_name} WHERE name = ?"
+        return self._fetch_one(query, (name,))
+
+    def get_by_sequence(self, sequence_id):
+        """시퀀스별 샷 조회"""
+        query = f"SELECT * FROM {self.table_name} WHERE sequence_id = ? ORDER BY name"
+        return self._fetch_all(query, (sequence_id,))
+    
+    @require_admin
+    def create(self, name, sequence_id, description=None, status="pending"):
+        """샷 생성"""
+        query = f"""
+            INSERT INTO {self.table_name} (name, sequence_id, status, description, created_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        cursor = self._execute(query, (name, sequence_id, status, description))
+        return cursor.lastrowid if cursor else None
+
+    def update_status(self, shot_id, status):
+        """샷 상태 업데이트"""
+        query = f"UPDATE {self.table_name} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        return self._execute(query, (status, shot_id))
+
+    @require_admin
     def delete(self, shot_id):
         """샷 삭제"""
-        query = "DELETE FROM shots WHERE id = ?"
+        query = f"DELETE FROM {self.table_name} WHERE id = ?"
         return self._execute(query, (shot_id,))
-
+    
+    @require_admin
     def update(self, shot_id, name=None, description=None, status=None):
         """샷 정보 수정"""
         updates = []
@@ -71,9 +76,5 @@ class Shot(BaseModel):
         updates.append("updated_at = CURRENT_TIMESTAMP")
         params.append(shot_id)
         
-        query = f"""
-            UPDATE shots 
-            SET {', '.join(updates)} 
-            WHERE id = ?
-        """
+        query = f"UPDATE {self.table_name} SET {', '.join(updates)} WHERE id = ?"
         return self._execute(query, tuple(params))

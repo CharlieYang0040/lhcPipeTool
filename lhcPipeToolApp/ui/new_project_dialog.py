@@ -34,6 +34,17 @@ class NewProjectDialog(QDialog):
         name_layout.addWidget(name_label)
         name_layout.addWidget(self.name_input)
         layout.addLayout(name_layout)
+
+        # 레벨 경로 입력
+        level_layout = QVBoxLayout()
+        level_layout.setSpacing(5)
+        level_label = QLabel("레벨 경로:")
+        self.level_input = QLineEdit()
+        if self.project:
+            self.level_input.setText(self.project[2])
+        level_layout.addWidget(level_label)
+        level_layout.addWidget(self.level_input)
+        layout.addLayout(level_layout)
         
         # 설명 입력
         desc_layout = QVBoxLayout()
@@ -72,11 +83,13 @@ class NewProjectDialog(QDialog):
     def _set_tab_order(self):
         """실제 탭 순서 설정"""
         self.name_input.setFocusPolicy(Qt.StrongFocus)
+        self.level_input.setFocusPolicy(Qt.StrongFocus)
         self.description_input.setFocusPolicy(Qt.StrongFocus)
         self.save_button.setFocusPolicy(Qt.StrongFocus)
         self.cancel_button.setFocusPolicy(Qt.StrongFocus)
         
-        self.setTabOrder(self.name_input, self.description_input)
+        self.setTabOrder(self.name_input, self.level_input)
+        self.setTabOrder(self.level_input, self.description_input)
         self.setTabOrder(self.description_input, self.save_button)
         self.setTabOrder(self.save_button, self.cancel_button)
         
@@ -90,11 +103,13 @@ class NewProjectDialog(QDialog):
             success = self.project_service.update_project(
                 self.project[0],
                 name,
+                self.level_input.text().strip(),
                 self.description_input.toPlainText().strip()
             )
         else:
             success = self.project_service.create_project(
                 name, 
+                self.level_input.text().strip(),
                 self.description_input.toPlainText().strip()
             )
             

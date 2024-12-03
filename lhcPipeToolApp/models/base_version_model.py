@@ -3,8 +3,8 @@ from .base_model import BaseModel
 from ..utils.logger import setup_logger
 
 class BaseVersionModel(BaseModel):
-    def __init__(self, connector):
-        super().__init__(connector)
+    def __init__(self, db_connector):
+        super().__init__(db_connector)
         self.logger = setup_logger(__name__)
         self.table_name = None  # 하위 클래스에서 정의
         self.item_type = None   # 하위 클래스에서 정의 (shot, sequence, project)

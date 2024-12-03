@@ -10,18 +10,18 @@ from .worker_service import WorkerService
 from ..utils.event_system import EventSystem
 
 class ProjectService:
-    def __init__(self, connector):
-        self.connector = connector
-        self.project_model = Project(connector)
-        self.sequence_model = Sequence(connector)
-        self.shot_model = Shot(connector)
+    def __init__(self, db_connector):
+        self.db_connector = db_connector
+        self.project_model = Project(db_connector)
+        self.sequence_model = Sequence(db_connector)
+        self.shot_model = Shot(db_connector)
         self.logger = setup_logger(__name__)
-        self.table_manager = TableManager(connector)
-        self.worker_service = WorkerService(connector)
+        self.table_manager = TableManager(db_connector)
+        self.worker_service = WorkerService(db_connector)
         self.version_models = {
-            "shot_id": ShotVersion(connector),
-            "sequence_id": SequenceVersion(connector),
-            "project_id": ProjectVersion(connector)
+            "shot_id": ShotVersion(db_connector),
+            "sequence_id": SequenceVersion(db_connector),
+            "project_id": ProjectVersion(db_connector)
         }
         
     def get_project_structure(self, project_id):
@@ -88,18 +88,8 @@ class ProjectService:
                 설명: {description}
             """)
             
-            # 테이블 생성 확인
-            self.table_manager.create_table('projects')
-            
-            cursor = self.connector.cursor()
-            sql = """
-                INSERT INTO PROJECTS (NAME, PATH, DESCRIPTION)
-                VALUES (?, ?, ?)
-                RETURNING ID
-            """
-            cursor.execute(sql, (name, str(path) if path else None, description))
-            project_id = cursor.fetchone()[0]
-            self.connector.commit()
+            # 모델의 create 메서드 호출
+            project_id = self.project_model.create(name, path, description)
             EventSystem.notify('project_updated')  # 이벤트 발생
             
             self.logger.info(f"프로젝트 생성 성공 - ID: {project_id}")
@@ -107,7 +97,6 @@ class ProjectService:
             
         except Exception as e:
             self.logger.error(f"프로젝트 생성 실패: {str(e)}")
-            self.connector.rollback()
             raise
 
     def create_sequence(self, project_id, name, level_path=None, description=None):
@@ -119,27 +108,16 @@ class ProjectService:
                 레벨 경로: {level_path}
                 설명: {description}
             """)
-            
-            # 테이블 생성 확인
-            self.table_manager.create_table('sequences')
-            
-            cursor = self.connector.cursor()
-            sql = """
-                INSERT INTO SEQUENCES (PROJECT_ID, NAME, LEVEL_PATH, DESCRIPTION)
-                VALUES (?, ?, ?, ?)
-                RETURNING ID
-            """
-            cursor.execute(sql, (project_id, str(name), level_path, description))
-            sequence_id = cursor.fetchone()[0]
-            self.connector.commit()
+
+            # 모델의 create 메서드 호출
+            sequence_id = self.sequence_model.create(name, project_id, description)
             EventSystem.notify('sequence_updated')  # 이벤트 발생
             
             self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
             return sequence_id
-            
+
         except Exception as e:
             self.logger.error(f"시퀀스 생성 실패: {str(e)}")
-            self.connector.rollback()
             raise
 
     def create_shot(self, sequence_id, name, status="pending", description=None):
@@ -151,27 +129,16 @@ class ProjectService:
                 상태: {status}
                 설명: {description}
             """)
-            
-            # 테이블 생성 확인
-            self.table_manager.create_table('shots')
-            
-            cursor = self.connector.cursor()
-            sql = """
-                INSERT INTO SHOTS (SEQUENCE_ID, NAME, STATUS, DESCRIPTION)
-                VALUES (?, ?, ?, ?)
-                RETURNING ID
-            """
-            cursor.execute(sql, (sequence_id, str(name), status, description))
-            shot_id = cursor.fetchone()[0]
-            self.connector.commit()
+
+            # 모델의 create 메서드 호출
+            shot_id = self.shot_model.create(name, sequence_id, description, status)
             EventSystem.notify('shot_updated')  # 이벤트 발생
             
             self.logger.info(f"샷 생성 성공 - ID: {shot_id}")
             return shot_id
-            
+
         except Exception as e:
             self.logger.error(f"샷 생성 실패: {str(e)}")
-            self.connector.rollback()
             raise
 
     def delete_project(self, project_id):
@@ -210,71 +177,23 @@ class ProjectService:
 
     def get_all_projects(self):
         """모든 프로젝트 조회"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("SELECT * FROM projects")
-            return cursor.fetchall()
-        except Exception as e:
-            self.logger.error(f"프로젝트 조회 실패: {str(e)}")
-            return []
+        return self.project_model.get_all()
 
     def get_project_by_name(self, name):
         """프로젝트 이름으로 조회"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("SELECT * FROM projects WHERE name = ?", (name,))
-            return cursor.fetchone()
-        except Exception as e:
-            self.logger.error(f"프로젝트 조회 실패: {str(e)}")
-            return None
+        return self.project_model.get_by_name(name)
 
     def get_sequence_by_name(self, project_id, name):
         """시퀀스 이름으로 조회"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("""
-                SELECT * FROM sequences 
-                WHERE project_id = ? AND name = ?
-            """, (project_id, name))
-            return cursor.fetchone()
-        except Exception as e:
-            self.logger.error(f"시퀀스 조회 실패: {str(e)}")
-            return None
+        return self.sequence_model.get_by_name(project_id, name)
 
     def get_shot_by_name(self, sequence_id, name):
         """샷 이름으로 조회"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("""
-                SELECT * FROM shots 
-                WHERE sequence_id = ? AND name = ?
-            """, (sequence_id, name))
-            return cursor.fetchone()
-        except Exception as e:
-            self.logger.error(f"샷 조회 실패: {str(e)}")
-            return None
+        return self.shot_model.get_by_name(sequence_id, name)
         
     def get_version_by_name(self, shot_id, version_number):
         """버전 이름으로 조회"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("""
-                SELECT * FROM versions WHERE shot_id = ? AND version_number = ?
-            """, (shot_id, version_number))
-            return cursor.fetchone()
-        except Exception as e:
-            self.logger.error(f"버전 조회 실패: {str(e)}")
-            return None
-
-    def get_project_by_path(self, path):
-        """경로 프로젝트 조회"""
-        try:
-            cursor = self.connector.cursor()
-            cursor.execute("SELECT * FROM projects WHERE path = ?", (path,))
-            return cursor.fetchone()
-        except Exception as e:
-            self.logger.error(f"프로젝트 조회 실패: {str(e)}")
-            return None
+        return self.version_models["shot_id"].get_by_name(shot_id, version_number)
 
     # TODO 언리얼 시퀀서와 json으로 폴더구조 공유 및 생성 기능 추가
     def sync_project_structure(self, root_path):
@@ -412,15 +331,15 @@ class ProjectService:
     def update_project_path(self, project_id, path):
         """프로젝트 경로 업데이트"""
         try:
-            cursor = self.connector.cursor()
+            cursor = self.db_connector.cursor()
             cursor.execute("""
                 UPDATE PROJECTS 
                 SET PATH = ?
                 WHERE ID = ?
             """, (str(path) if path else None, project_id))
-            self.connector.commit()
+            self.db_connector.commit()
             return True
         except Exception as e:
             self.logger.error(f"프로젝트 경로 업데이트 실패: {str(e)}")
-            self.connector.rollback()
+            self.db_connector.rollback()
             return False

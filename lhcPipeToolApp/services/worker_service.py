@@ -3,8 +3,8 @@ from ..models.worker import Worker
 from ..utils.logger import setup_logger
 
 class WorkerService:
-    def __init__(self, connector):
-        self.worker_model = Worker(connector)
+    def __init__(self, db_connector):
+        self.worker_model = Worker(db_connector)
         self.logger = setup_logger(__name__)
         
     def create_worker(self, name, email=None, department=None):
@@ -51,13 +51,13 @@ class WorkerService:
             # if versions:
             #     raise ValueError("버전이 존재하는 작업자는 삭제할 수 없습니다.")
             
-            cursor = self.worker_model.connector.cursor()
+            cursor = self.worker_model.db_connector.cursor()
             cursor.execute("DELETE FROM workers WHERE id = ?", (worker_id,))
-            self.worker_model.connector.commit()
+            self.worker_model.db_connector.commit()
             return True
             
         except Exception as e:
-            self.worker_model.connector.rollback()
+            self.worker_model.db_connector.rollback()
             raise ValueError(f"작업자 삭제 실패: {str(e)}")
 
     def get_worker_versions(self, worker_id):
@@ -78,7 +78,7 @@ class WorkerService:
     def get_or_create_system_worker(self):
         """시스템 워커 ID 조회 또는 생성"""
         try:
-            cursor = self.worker_model.connector.cursor()
+            cursor = self.worker_model.db_connector.cursor()
             cursor.execute("SELECT id FROM workers WHERE name = 'system'")
             result = cursor.fetchone()
             
@@ -94,7 +94,7 @@ class WorkerService:
                 RETURNING id
             """)
             worker_id = cursor.fetchone()[0]
-            self.worker_model.connector.commit()
+            self.worker_model.db_connector.commit()
             self.logger.info(f"새 시스템 워커 생성됨 - ID: {worker_id}")
             return worker_id
             

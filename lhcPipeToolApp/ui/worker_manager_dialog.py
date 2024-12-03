@@ -43,6 +43,7 @@ class WorkerManagerDialog(QDialog):
         self.table.setColumnCount(3)  # ID, 이름, 부서만 표시
         self.table.setHorizontalHeaderLabels(["ID", "이름", "부서"])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)  # 테이블 편집 비활성화
         layout.addWidget(self.table)
         
         # 버튼 영역
@@ -78,12 +79,12 @@ class WorkerManagerDialog(QDialog):
         self.table.setRowCount(len(workers))
         
         for row, worker in enumerate(workers):
-            # worker 튜플: (id, name)
-            self.table.setItem(row, 0, QTableWidgetItem(str(worker[0])))  # id
-            self.table.setItem(row, 1, QTableWidgetItem(worker[1]))       # name
+            # worker 딕셔너리: {'id': ..., 'name': ..., 'department': ...}
+            self.table.setItem(row, 0, QTableWidgetItem(str(worker['id'])))  # id
+            self.table.setItem(row, 1, QTableWidgetItem(worker['name']))       # name
             # department가 없을 수 있으므로 조건부로 설정
-            department = worker[2] if len(worker) > 2 else ""
-            self.table.setItem(row, 2, QTableWidgetItem(department))      # department
+            department = worker.get('department', "")
+            self.table.setItem(row, 2, QTableWidgetItem(department))            # department
             
     def add_worker(self):
         """새 작업자 추가"""
@@ -96,10 +97,13 @@ class WorkerManagerDialog(QDialog):
             
         try:
             self.worker_service.create_worker(name, department=department)
+            self.logger.info(f"새 작업자 추가: 이름={name}, 부서={department}")
             self.name_edit.clear()
             self.load_workers()
         except ValueError as e:
+            self.logger.error(f"작업자 추가 실패: {str(e)}")
             QMessageBox.warning(self, "오류", str(e))
+
             
     def delete_worker(self):
         """작업자 삭제"""
@@ -108,8 +112,15 @@ class WorkerManagerDialog(QDialog):
             QMessageBox.warning(self, "경고", "삭제할 작업자를 선택하세요.")
             return
             
-        worker_id = int(self.table.item(current_row, 0).text())
-        worker_name = self.table.item(current_row, 1).text()
+        worker_id_item = self.table.item(current_row, 0)
+        worker_name_item = self.table.item(current_row, 1)
+        
+        if not worker_id_item or not worker_name_item:
+            QMessageBox.warning(self, "오류", "선택한 작업자의 정보가 불완전합니다.")
+            return
+        
+        worker_id = int(worker_id_item.text())
+        worker_name = worker_name_item.text()
         
         reply = QMessageBox.question(
             self, "확인", 
