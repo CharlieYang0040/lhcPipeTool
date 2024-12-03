@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 from .project_tree import ProjectTreeWidget
 from .version_table import VersionTableWidget
 from .detail_panel import DetailPanel
+from ..models.worker import Worker
 from ..services.project_service import ProjectService
 from ..services.worker_service import WorkerService
 from ..services.refresh_service import RefreshService
@@ -33,13 +34,14 @@ class MainWindow(QMainWindow):
         self.table_manager = TableManager(db_connector)
         
         # 서비스 초기화
+        # TODO 모델 계층 구조 변경 후 수정 필요
         self.project_service = ProjectService(db_connector)
         self.version_services = {
             "shot": ShotVersionService(db_connector, self.logger),
             "sequence": SequenceVersionService(db_connector, self.logger),
             "project": ProjectVersionService(db_connector, self.logger)
         }
-        self.worker_service = WorkerService(db_connector)
+        self.worker_service = WorkerService(Worker(db_connector))
         self.refresh_service = RefreshService(db_connector, self.project_service, self.version_services, self.logger)
         self.database_service = DatabaseService(db_connector, self.logger)
         

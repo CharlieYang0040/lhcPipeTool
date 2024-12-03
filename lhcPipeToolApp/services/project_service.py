@@ -79,6 +79,48 @@ class ProjectService:
             self.logger.error(f"프로젝트 구조 조회 중 오류 발생: {str(e)}", exc_info=True)
             return None
 
+    def get_full_project_structure(self):
+        """전체 프로젝트 구조와 최신 버전 정보를 가져옵니다."""
+        data = self.project_model.get_full_project_structure()
+        structure = {}
+
+        for row in data:
+            project_id = row['project_id']
+            sequence_id = row.get('sequence_id')
+            shot_id = row.get('shot_id')
+
+            # 프로젝트 추가
+            if project_id not in structure:
+                structure[project_id] = {
+                    'id': project_id,
+                    'name': row['project_name'],
+                    'preview_path': row.get('project_preview'),
+                    'sequences': {}
+                }
+
+            # 시퀀스가 있을 경우 추가
+            if sequence_id:
+                sequences = structure[project_id]['sequences']
+                if sequence_id not in sequences:
+                    sequences[sequence_id] = {
+                        'id': sequence_id,
+                        'name': row['sequence_name'],
+                        'preview_path': row.get('sequence_preview'),
+                        'shots': {}
+                    }
+
+                # 샷이 있을 경우 추가
+                if shot_id:
+                    shots = sequences[sequence_id]['shots']
+                    if shot_id not in shots:
+                        shots[shot_id] = {
+                            'id': shot_id,
+                            'name': row['shot_name'],
+                            'preview_path': row.get('shot_preview')
+                        }
+
+        return structure
+
     def create_project(self, name, path=None, description=None):
         """프로젝트 생성"""
         try:

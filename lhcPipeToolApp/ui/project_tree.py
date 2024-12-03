@@ -70,67 +70,51 @@ class ProjectTreeWidget(QTreeWidget):
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.itemClicked.connect(self.handle_item_click)
         
-    # TODO 열려있던 계층 구조 유지
     def load_projects(self):
         """프로젝트 목록 로드"""
         self.clear()
         try:
-            # 서비스 레이어를 통해 프로젝트 목록을 가져옴
-            projects = self.project_service.get_all_projects()  # 딕셔너리 리스트
-            
+            # 서비스 레이어를 통해 전체 프로젝트 구조를 가져옴
+            structure = self.project_service.get_full_project_structure()
+
             self.setSelectionMode(QTreeWidget.ExtendedSelection)
 
-            for project in projects:
-                project_id = project['id']
+            for project_id, project in structure.items():
                 project_name = project['name']
-                
-                latest_version = self.version_services["project"].get_latest_version(project_id)
-                preview_path = latest_version.get('preview_path') if latest_version else None
-                
+                preview_path = project.get('preview_path')
+
                 project_item = QTreeWidgetItem([""])
                 project_item.setData(0, Qt.UserRole, ("project", project_id))
                 project_widget = CustomTreeItemWidget(project_name, "project", preview_path)
                 self.addTopLevelItem(project_item)
                 self.setItemWidget(project_item, 0, project_widget)
-                
-                # 시퀀스 조회 via ProjectService
-                sequences = self.project_service.sequence_model.get_by_project(project_id)  # 딕셔너리 리스트
-                
-                for sequence in sequences:
-                    sequence_id = sequence['id']
+
+                for sequence_id, sequence in project['sequences'].items():
                     sequence_name = sequence['name']
-                    
-                    latest_version = self.version_services["sequence"].get_latest_version(sequence_id)
-                    preview_path = latest_version.get('preview_path') if latest_version else None
-                    
+                    preview_path = sequence.get('preview_path')
+
                     seq_item = QTreeWidgetItem([""])
                     seq_item.setData(0, Qt.UserRole, ("sequence", sequence_id))
                     seq_widget = CustomTreeItemWidget(sequence_name, "sequence", preview_path)
                     project_item.addChild(seq_item)
                     self.setItemWidget(seq_item, 0, seq_widget)
-                    
-                    # 샷 조회 via ProjectService
-                    shots = self.project_service.shot_model.get_by_sequence(sequence_id)  # 딕셔너리 리스트
-                    
-                    for shot in shots:
-                        shot_id = shot['id']
+
+                    for shot_id, shot in sequence['shots'].items():
                         shot_name = shot['name']
-                        
-                        latest_version = self.version_services["shot"].get_latest_version(shot_id)
-                        preview_path = latest_version.get('preview_path') if latest_version else None
-                        
+                        preview_path = shot.get('preview_path')
+
                         shot_item = QTreeWidgetItem([""])
                         shot_item.setData(0, Qt.UserRole, ("shot", shot_id))
                         shot_widget = CustomTreeItemWidget(shot_name, "shot", preview_path)
                         seq_item.addChild(shot_item)
                         self.setItemWidget(shot_item, 0, shot_widget)
-                
+
                 project_item.setExpanded(True)
-                
+
         except Exception as e:
             self.logger.error(f"프로젝트 목록 로드 실패: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "오류", f"프로젝트 목록 로드 실패: {str(e)}")
-
+                
     def show_context_menu(self, position):
         """우클릭 컨텍스트 메뉴 표시"""
         menu = QMenu()

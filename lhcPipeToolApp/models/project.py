@@ -28,6 +28,57 @@ class Project(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE name = ?"
         return self._fetch_one(query, (name,))
         
+    def get_full_project_structure(self):
+        """프로젝트, 시퀀스, 샷, 그리고 최신 버전 정보를 모두 가져옵니다."""
+        query = """
+        WITH
+        LatestProjectVersion AS (
+            SELECT pv.project_id, pv.preview_path
+            FROM project_versions pv
+            WHERE pv.version_number = (
+                SELECT MAX(version_number)
+                FROM project_versions
+                WHERE project_id = pv.project_id
+            )
+        ),
+        LatestSequenceVersion AS (
+            SELECT sv.sequence_id, sv.preview_path
+            FROM sequence_versions sv
+            WHERE sv.version_number = (
+                SELECT MAX(version_number)
+                FROM sequence_versions
+                WHERE sequence_id = sv.sequence_id
+            )
+        ),
+        LatestShotVersion AS (
+            SELECT shv.shot_id, shv.preview_path
+            FROM versions shv
+            WHERE shv.version_number = (
+                SELECT MAX(version_number)
+                FROM versions
+                WHERE shot_id = shv.shot_id
+            )
+        )
+        SELECT
+            p.id AS project_id,
+            p.name AS project_name,
+            s.id AS sequence_id,
+            s.name AS sequence_name,
+            sh.id AS shot_id,
+            sh.name AS shot_name,
+            lpv.preview_path AS project_preview,
+            lsv.preview_path AS sequence_preview,
+            lshv.preview_path AS shot_preview
+        FROM projects p
+        LEFT JOIN sequences s ON s.project_id = p.id
+        LEFT JOIN shots sh ON sh.sequence_id = s.id
+        LEFT JOIN LatestProjectVersion lpv ON lpv.project_id = p.id
+        LEFT JOIN LatestSequenceVersion lsv ON lsv.sequence_id = s.id
+        LEFT JOIN LatestShotVersion lshv ON lshv.shot_id = sh.id
+        ORDER BY p.name, s.name, sh.name
+        """
+        return self._fetch_all(query)
+
     def create(self, name, path=None, description=None):
         """프로젝트 생성"""
         query = f"""

@@ -41,6 +41,11 @@ class NewVersionDialog(QDialog):
         # 레이아웃 설정 후 탭 순서 설정
         self.setup_tab_order()
         
+        # 파일 드래그 앤 드롭 설정 추가
+        self.file_path_input.setAcceptDrops(True)
+        self.file_path_input.dragEnterEvent = self.dragEnterEvent
+        self.file_path_input.dropEvent = self.dropEvent
+
     def eventFilter(self, obj, event):
         """이벤트 필터"""
         if obj == self and event.type() == QEvent.MouseButtonPress:
@@ -322,3 +327,17 @@ class NewVersionDialog(QDialog):
         except Exception as e:
             self.logger.error(f"버전 생성 중 오류 발생: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "오류", f"버전 생성 중 오류가 발생했습니다: {str(e)}")
+
+    def dragEnterEvent(self, event):
+        """드래그 진입 이벤트 처리"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """드롭 이벤트 처리"""
+        urls = event.mimeData().urls()
+        if urls:
+            file_path = urls[0].toLocalFile()
+            if os.path.isfile(file_path):
+                self.file_path_input.setText(file_path)
+                self.handle_file_path_change()
