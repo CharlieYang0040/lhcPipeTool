@@ -63,6 +63,7 @@ class ProjectTreeWidget(QTreeWidget):
     def load_projects(self):
         """프로젝트 목록 로드"""
         self.clear()
+        self.save_expanded_state()
         try:
             # 서비스 레이어를 통해 전체 프로젝트 구조를 가져옴
             structure = self.project_service.get_full_project_structure()
@@ -99,11 +100,15 @@ class ProjectTreeWidget(QTreeWidget):
                         seq_item.addChild(shot_item)
                         self.setItemWidget(shot_item, 0, shot_widget)
 
-                project_item.setExpanded(True)
+                    seq_item.setExpanded(True)
+
+            project_item.setExpanded(True)
 
         except Exception as e:
             self.logger.error(f"프로젝트 목록 로드 실패: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "오류", f"프로젝트 목록 로드 실패: {str(e)}")
+        finally:
+            self.restore_expanded_state()
                 
     def show_context_menu(self, position):
         """우클릭 컨텍스트 메뉴 표시"""
@@ -302,3 +307,30 @@ class ProjectTreeWidget(QTreeWidget):
                 return True
             
         return super().eventFilter(obj, event)
+    
+    def save_expanded_state(self):
+        self.expanded_items = set()
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            self._save_expanded_state_recursive(item)
+
+    def _save_expanded_state_recursive(self, item):
+        if item.isExpanded():
+            item_id = item.data(0, Qt.UserRole)
+            self.expanded_items.add(item_id)
+        for i in range(item.childCount()):
+            self._save_expanded_state_recursive(item.child(i))
+
+    def restore_expanded_state(self):
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            self._restore_expanded_state_recursive(item)
+
+    def _restore_expanded_state_recursive(self, item):
+        item_id = item.data(0, Qt.UserRole)
+        if item_id in self.expanded_items:
+            item.setExpanded(True)
+        else:
+            item.setExpanded(False)
+        for i in range(item.childCount()):
+            self._restore_expanded_state_recursive(item.child(i))
