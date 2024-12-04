@@ -180,7 +180,6 @@ class VersionTableWidget(QWidget):
                 return
 
             self.logger.debug(f"조회된 버전 수: {len(versions)}")
-            self.logger.debug(f"첫 번째 버전 데이터 구조: {versions[0]}")  # 데이터 구조 확인
 
             self.table.setRowCount(len(versions))
             for row, version in enumerate(versions):
@@ -196,14 +195,6 @@ class VersionTableWidget(QWidget):
                     worker_name = version.get('worker_name', 'Unknown')
                     created_at = version.get('created_at', 'Unknown')
                     status = version.get('status', 'Unknown')
-                    
-                    self.logger.debug(f"""버전 정보 매핑:
-                        version_name: {version_name}
-                        version_id: {version_id}
-                        worker_name: {worker_name}
-                        created_at: {created_at}
-                        status: {status}
-                    """)
 
                     # 버전 아이템 생성
                     version_item = QTableWidgetItem(str(version_name))
@@ -244,11 +235,11 @@ class VersionTableWidget(QWidget):
 
     def clear_versions(self):
         """버전 테이블 초기화"""
-        row_count = 1  # 최소 1행은 표시
-        self.table.setRowCount(row_count)
+        total_rows = 1  # 최소 1행은 표시
+        self.table.setRowCount(total_rows)
         
         # 수직 헤더 설정 유지
-        for row in range(row_count):
+        for row in range(total_rows):
             self.table.setVerticalHeaderItem(row, QTableWidgetItem(str(row + 1)))
             # 빈 셀 설정
             for col in range(self.table.columnCount()):

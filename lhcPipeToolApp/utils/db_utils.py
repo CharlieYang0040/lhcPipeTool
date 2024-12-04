@@ -73,7 +73,7 @@ def check_foreign_keys(db_connector, table_name):
         logger.error(f"외래 키 제약조건 확인 실패: {str(e)}", exc_info=True)
         return None
 
-def get_table_row_count(db_connector, table_name):
+def get_table_total_rows(db_connector, table_name):
     """테이블의 레코드 수 조회"""
     logger = setup_logger(__name__)
     try:

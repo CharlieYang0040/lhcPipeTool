@@ -120,7 +120,7 @@ class ProjectService:
             # 모델의 create 메서드 호출
             project_id = self.project_model.create(name, path, description)
             if project_id:
-                self.db_connector.commit()
+                self.project_model._commit()
                 EventSystem.notify('project_updated')  # 이벤트 발생
                 
                 self.logger.info(f"프로젝트 생성 성공 - ID: {project_id}")
@@ -129,7 +129,7 @@ class ProjectService:
                 raise Exception("프로젝트 생성 실패")
             
         except Exception as e:
-            self.db_connector.rollback()
+            self.project_model._rollback()
             self.logger.error(f"프로젝트 생성 실패: {str(e)}")
             raise
 
@@ -147,13 +147,13 @@ class ProjectService:
             # 모델의 create 메서드 호출
             sequence_id = self.sequence_model.create(name, project_id, level_path, level_sequence_path, description)
             if sequence_id:
-                self.db_connector.commit()
+                self.sequence_model._commit()
                 EventSystem.notify('sequence_updated')  # 이벤트 발생
                 
                 self.logger.info(f"시퀀스 생성 성공 - ID: {sequence_id}")
                 return sequence_id
             else:
-                self.db_connector.rollback()
+                self.sequence_model._rollback()
                 raise Exception("시퀀스 생성 실패")
 
         except Exception as e:
@@ -173,7 +173,7 @@ class ProjectService:
             # 모델의 create 메서드 호출
             shot_id = self.shot_model.create(name, sequence_id, description, status)
             if shot_id:
-                self.db_connector.commit()
+                self.shot_model._commit()
                 EventSystem.notify('shot_updated')  # 이벤트 발생
                 
                 self.logger.info(f"샷 생성 성공 - ID: {shot_id}")
@@ -182,7 +182,7 @@ class ProjectService:
                 raise Exception("샷 생성 실패")
 
         except Exception as e:
-            self.db_connector.rollback()
+            self.shot_model._rollback()
             self.logger.error(f"샷 생성 실패: {str(e)}")
             raise
 
@@ -196,7 +196,15 @@ class ProjectService:
             self.delete_sequence(seq[0])
         
         # 프로젝트 삭제
-        return self.project_model.delete(project_id)
+        try:
+            cursor = self.project_model.delete(project_id)
+            if cursor:
+                self.project_model._commit()
+            return True
+        except Exception as e:
+            self.project_model._rollback()
+            self.logger.error(f"프로젝트 삭제 실패: {str(e)}")
+            return False
 
     def delete_sequence(self, sequence_id):
         """시퀀스 삭제 (연관된 샷도 함께 삭제)"""
@@ -206,11 +214,29 @@ class ProjectService:
             self.shot_model.delete(shot[0])
         
         # 시퀀스 삭제
-        return self.sequence_model.delete(sequence_id)
+        try:
+            cursor = self.sequence_model.delete(sequence_id)
+            if cursor:
+                self.sequence_model._commit()
+                return True
+            else:
+                raise Exception("시퀀스 삭제 실패")
+        except Exception as e:
+            self.sequence_model._rollback()
+            self.logger.error(f"시퀀스 삭제 실패: {str(e)}")
+            return False
 
     def delete_shot(self, shot_id):
         """샷 삭제"""
-        return self.shot_model.delete(shot_id)
+        try:
+            cursor = self.shot_model.delete(shot_id)
+            if cursor:
+                self.shot_model._commit()
+            return True
+        except Exception as e:
+            self.shot_model._rollback()
+            self.logger.error(f"샷 삭제 실패: {str(e)}")
+            return False
 
     def get_sequence_by_id(self, sequence_id):
         """시퀀스 정보 조회"""

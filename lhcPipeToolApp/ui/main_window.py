@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 2)  # 상세 정보 패널
         
         # 프로젝트 트리
-        self.project_tree = ProjectTreeWidget(self.project_service, self.version_services)
+        self.project_tree = ProjectTreeWidget(self.project_service, self.version_services, self.settings_service)
         splitter.addWidget(self.project_tree)
         
         # 버전 테이블
@@ -241,22 +241,19 @@ class MainWindow(QMainWindow):
         """새 프로젝트 다이얼로그"""
         from .new_project_dialog import NewProjectDialog
         dialog = NewProjectDialog(self.project_service, self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.project_tree.load_projects()
+        dialog.exec_()
 
     def show_new_sequence_dialog(self, project_id, sequence=None):
         """시퀀스 생성/편집 다이얼로그"""
         from .new_sequence_dialog import SequenceDialog
         dialog = SequenceDialog(self.project_service, project_id, sequence, self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.project_tree.load_projects()
+        dialog.exec_()
 
     def show_new_shot_dialog(self, sequence_id, shot=None):
         """샷 생성/편집 다이얼로그"""
         from .new_shot_dialog import ShotDialog
         dialog = ShotDialog(self.project_service, sequence_id, shot, self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.project_tree.load_projects()
+        dialog.exec_()
 
     def show_new_version_dialog(self):
         """새 버전 다이얼로그"""
@@ -272,8 +269,7 @@ class MainWindow(QMainWindow):
             self.app_state.current_item_type, 
             self
         )
-        if dialog.exec_() == QDialog.Accepted:
-            self.version_table.load_versions(self.app_state.current_item_id)
+        dialog.exec_()
 
     def show_render_manager(self):
         """렌더 관리자 다이얼로그"""

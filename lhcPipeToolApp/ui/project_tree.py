@@ -15,11 +15,12 @@ class ProjectTreeWidget(QTreeWidget):
     item_selected = Signal(int)
     item_type_changed = Signal(str, int)
 
-    def __init__(self, project_service, version_services):
+    def __init__(self, project_service, version_services, settings_service):
         super().__init__()
         self.logger = setup_logger(__name__)
         self.project_service = project_service
         self.version_services = version_services
+        self.settings_service = settings_service
         self.app_state = AppState()
         self.setup_ui()
         self.load_projects()
@@ -63,7 +64,8 @@ class ProjectTreeWidget(QTreeWidget):
     def load_projects(self):
         """프로젝트 목록 로드"""
         self.clear()
-        self.save_expanded_state()
+        self.logger.debug("프로젝트 목록 로드 시작")
+        # self.save_expanded_state()
         try:
             # 서비스 레이어를 통해 전체 프로젝트 구조를 가져옴
             structure = self.project_service.get_full_project_structure()
@@ -102,14 +104,14 @@ class ProjectTreeWidget(QTreeWidget):
 
                     seq_item.setExpanded(True)
 
-            project_item.setExpanded(True)
+                project_item.setExpanded(True)
 
         except Exception as e:
             self.logger.error(f"프로젝트 목록 로드 실패: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "오류", f"프로젝트 목록 로드 실패: {str(e)}")
-        finally:
-            self.restore_expanded_state()
-                
+        # finally:
+        #     self.restore_expanded_state()
+            
     def show_context_menu(self, position):
         """우클릭 컨텍스트 메뉴 표시"""
         menu = QMenu()
@@ -126,14 +128,14 @@ class ProjectTreeWidget(QTreeWidget):
             if item_type == "project":
                 menu.addAction("시퀀스 추가", lambda: self.add_sequence(item, item_id))
                 menu.addAction("프로젝트 버전 추가", lambda: self.add_version(item, "project", item_id))
-                menu.addAction("프로젝트 삭제", lambda: self.delete_project(item, item_id))
+                menu.addAction("프로젝트 삭제", lambda: self.delete_selected_items())
             elif item_type == "sequence":
                 menu.addAction("샷 추가", lambda: self.add_shot(item, item_id))
                 menu.addAction("시퀀스 버전 추가", lambda: self.add_version(item, "sequence", item_id))
-                menu.addAction("시퀀스 삭제", lambda: self.delete_sequence(item, item_id))
+                menu.addAction("시퀀스 삭제", lambda: self.delete_selected_items())
             elif item_type == "shot":
                 menu.addAction("버전 추가", lambda: self.add_version(item, "shot", item_id))
-                menu.addAction("샷 삭제", lambda: self.delete_shot(item, item_id))
+                menu.addAction("샷 삭제", lambda: self.delete_selected_items())
                 
             menu.exec_(self.viewport().mapToGlobal(position))
 
@@ -144,7 +146,6 @@ class ProjectTreeWidget(QTreeWidget):
 
             if dialog.exec_():
                 self.logger.info("새 프로젝트 생성 성공")
-                self.load_projects()
                 return True
                 
             self.logger.debug("프로젝트 생성 취소됨")
@@ -162,7 +163,6 @@ class ProjectTreeWidget(QTreeWidget):
             
             if dialog.exec_():
                 self.logger.info("새 시퀀스 생성 성공")
-                self.load_projects()
                 return True
                 
             self.logger.debug("시퀀스 생성 취소됨")
@@ -180,7 +180,6 @@ class ProjectTreeWidget(QTreeWidget):
             
             if dialog.exec_():
                 self.logger.info("새 샷 생성 성공")
-                self.load_projects()
                 return True
                 
             self.logger.debug("샷 생성 취소됨")
@@ -196,7 +195,7 @@ class ProjectTreeWidget(QTreeWidget):
         try:
             self.logger.debug(f"버전 추가 시작 - item_type: {item_type}, item_id: {item_id}")
 
-            dialog = NewVersionDialog(self.db_connector, self, item_id, item_type, self)
+            dialog = NewVersionDialog(self.version_services, self.settings_service, self, item_id, item_type, self)
                 
             if dialog.exec_():
                 self.logger.info("새 버전 생성 성공")
@@ -212,24 +211,36 @@ class ProjectTreeWidget(QTreeWidget):
 
     def delete_selected_items(self):
         """선택된 아이템들 삭제"""
-        self.logger.debug(f"선택된 아이템들 : {self.selectedItems()}")
         selected_items = self.selectedItems()
         if not selected_items:
-            return
-        
-        for item in selected_items:
-            item_type, item_id = item.data(0, Qt.UserRole)
-            self.delete_item(item, item_type, item_id)
-
-    def delete_item(self, item, item_type, item_id):
-        """아이템 삭제"""
-        if item_type == "project":
-            self.delete_project(item, item_id)
-        elif item_type == "sequence":
-            self.delete_sequence(item, item_id)
-        elif item_type == "shot":
-            self.delete_shot(item, item_id)
-            return False
+            return True
+                    
+        reply = QMessageBox.question(
+            self, 
+            "항목 삭제",
+            f"선택한 {len(selected_items)}개의 항목을 삭제하시겠습니까?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+                
+        if reply == QMessageBox.Yes:
+            for item in selected_items:
+                item_type, item_id = item.data(0, Qt.UserRole)
+                try:
+                    if item_type == "project":
+                        if self.project_service.delete_project(item_id):
+                            parent = item.parent() or self.invisibleRootItem()
+                            parent.removeChild(item)
+                    elif item_type == "sequence":
+                        if self.project_service.delete_sequence(item_id):
+                            parent = item.parent()
+                            parent.removeChild(item)
+                    elif item_type == "shot":
+                        if self.project_service.delete_shot(item_id):
+                            parent = item.parent()
+                            parent.removeChild(item)
+                except Exception as e:
+                    QMessageBox.critical(self, "오류", f"{item_type} 삭제 실패: {str(e)}")
+        return True
 
     def delete_project(self, item, project_id):
         """프로젝트 삭제"""
@@ -242,6 +253,7 @@ class ProjectTreeWidget(QTreeWidget):
                 if self.project_service.delete_project(project_id):
                     index = self.indexOfTopLevelItem(item)
                     self.takeTopLevelItem(index)
+                    self.project_service._commit()
             except Exception as e:
                 QMessageBox.critical(self, "오류", f"프로젝트 삭제 실패: {str(e)}")
 
@@ -256,6 +268,7 @@ class ProjectTreeWidget(QTreeWidget):
                 if self.project_service.delete_sequence(sequence_id):
                     parent = item.parent()
                     parent.removeChild(item)
+                    self.project_service._commit()
             except Exception as e:
                 QMessageBox.critical(self, "오류", f"시퀀스 삭제 실패: {str(e)}")
 
@@ -270,6 +283,7 @@ class ProjectTreeWidget(QTreeWidget):
                 if self.project_service.delete_shot(shot_id):
                     parent = item.parent()
                     parent.removeChild(item)
+                    self.project_service._commit()
             except Exception as e:
                 QMessageBox.critical(self, "오류", f"샷 삭제 실패: {str(e)}")
 
@@ -293,10 +307,8 @@ class ProjectTreeWidget(QTreeWidget):
         if (obj == self.viewport() and 
             event.type() == QEvent.MouseButtonPress):
             
-            # 클릭한 위치의 아이템 확인
             item = self.itemAt(event.pos())
             
-            # 아이템이 없는 곳을 클릭했을 경우
             if not item:
                 self.clearSelection()  # 선택 해제
                 self.item_selected.emit(-1)  # 선택 해제 시그널 발생
@@ -304,33 +316,39 @@ class ProjectTreeWidget(QTreeWidget):
         elif event.type() == QEvent.KeyPress:
             if event.key() == Qt.Key_Delete:
                 self.delete_selected_items()
-                return True
             
         return super().eventFilter(obj, event)
     
     def save_expanded_state(self):
         self.expanded_items = set()
+        self.logger.debug("확장된 상태 저장 시작")
         for i in range(self.topLevelItemCount()):
             item = self.topLevelItem(i)
             self._save_expanded_state_recursive(item)
+        self.logger.debug(f"확장된 아이템: {self.expanded_items}")
 
     def _save_expanded_state_recursive(self, item):
         if item.isExpanded():
             item_id = item.data(0, Qt.UserRole)
             self.expanded_items.add(item_id)
+            self.logger.debug(f"확장된 아이템 ID 저장: {item_id}")
         for i in range(item.childCount()):
             self._save_expanded_state_recursive(item.child(i))
 
     def restore_expanded_state(self):
+        self.logger.debug("확장된 상태 복원 시작")
         for i in range(self.topLevelItemCount()):
             item = self.topLevelItem(i)
             self._restore_expanded_state_recursive(item)
+        self.logger.debug("확장된 상태 복원 완료")
 
     def _restore_expanded_state_recursive(self, item):
         item_id = item.data(0, Qt.UserRole)
         if item_id in self.expanded_items:
             item.setExpanded(True)
+            self.logger.debug(f"아이템 ID 복원: {item_id} (확장됨)")
         else:
             item.setExpanded(False)
+            self.logger.debug(f"아이템 ID 복원: {item_id} (축소됨)")
         for i in range(item.childCount()):
             self._restore_expanded_state_recursive(item.child(i))

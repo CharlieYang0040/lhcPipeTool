@@ -1,6 +1,5 @@
 """데이터베이스 모델"""
 from .base_model import BaseModel
-from pathlib import Path
 
 class Database(BaseModel):
     def __init__(self, db_connector):
@@ -14,8 +13,29 @@ class Database(BaseModel):
             WHERE RDB$SYSTEM_FLAG = 0 AND RDB$VIEW_SOURCE IS NULL
             ORDER BY RDB$RELATION_NAME
         """
-        return [table[0].strip() for table in self._fetch_all(query)]
-
+        # 쿼리 실행 및 결과 가져오기
+        tables = self._fetch_all(query)
+        
+        # 결과가 비어 있지 않은지 확인
+        if not tables:
+            return []
+        
+        # 컬럼명 확인
+        first_table = tables[0]
+        column_names = first_table.keys()
+        self.logger.debug(f"테이블 컬럼명: {column_names}")
+        
+        # 컬럼명에 따른 키 설정
+        if 'RDB$RELATION_NAME' in first_table:
+            column_key = 'RDB$RELATION_NAME'
+        elif 'rdb$relation_name' in first_table:
+            column_key = 'rdb$relation_name'
+        else:
+            raise KeyError("컬럼명을 찾을 수 없습니다.")
+        
+        # 테이블 이름 목록 반환
+        return [table[column_key].strip() for table in tables]
+    
     def get_table_columns(self, table_name):
         """테이블의 컬럼 정보 조회"""
         query = """
@@ -39,14 +59,46 @@ class Database(BaseModel):
 
     def get_table_statistics(self, table_name):
         """테이블 통계 정보 조회"""
-        query = """
-            SELECT 
-                COUNT(*) as row_count,
-                MAX(created_at) as last_created,
-                MAX(updated_at) as last_updated
-            FROM {}
-        """.format(table_name)
-        return self._fetch_one(query)
+        # 1. 먼저 updated_at 컬럼 존재 여부 확인
+        check_column_query = """
+            SELECT 1
+            FROM RDB$RELATION_FIELDS
+            WHERE RDB$RELATION_NAME = ?
+            AND RDB$FIELD_NAME = 'UPDATED_AT'
+        """
+        has_updated = self._fetch_one(check_column_query, (table_name.upper(),))
+
+        # 2. 컬럼 존재 여부에 따라 다른 쿼리 실행
+        if has_updated:
+            query = """
+                SELECT 
+                    COUNT(*) as total_rows,
+                    MAX(created_at) as last_created,
+                    MAX(updated_at) as last_updated
+                FROM {}
+            """.format(table_name)
+        else:
+            query = """
+                SELECT 
+                    COUNT(*) as total_rows,
+                    MAX(created_at) as last_created,
+                    NULL as last_updated
+                FROM {}
+            """.format(table_name)
+
+        result = self._fetch_one(query)
+        
+        if result:
+            return {
+                'total_rows': result['total_rows'] if result['total_rows'] is not None else 0,
+                'last_created': result['last_created'],
+                'last_updated': result['last_updated'] if has_updated else None
+            }
+        return {
+            'total_rows': 0,
+            'last_created': None,
+            'last_updated': None
+        }
 
     def get_foreign_keys(self, table_name):
         """테이블의 외래 키 정보 조회"""
