@@ -8,10 +8,6 @@ class Shot(BaseModel):
         self.require_admin = require_admin(db_connector)
         self.table_name = 'shots'
         self.item_type = 'shot'
-        
-    @property
-    def admin_required_methods(self):
-        return [self.create, self.update, self.delete]
 
     def get_all(self):
         """모든 샷 조회"""
@@ -33,6 +29,7 @@ class Shot(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE sequence_id = ? ORDER BY name"
         return self._fetch_all(query, (sequence_id,))
     
+    @require_admin
     def create(self, name, sequence_id, status="pending", description=None):
         """샷 생성"""
         query = f"""
@@ -53,11 +50,13 @@ class Shot(BaseModel):
         query = f"UPDATE {self.table_name} SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
         return self._execute(query, (status, shot_id))
 
+    @require_admin
     def delete(self, shot_id):
         """샷 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"
         return self._execute(query, (shot_id,))
 
+    @require_admin
     def update(self, shot_id, name=None, description=None, status=None):
         """샷 정보 수정"""
         updates = []

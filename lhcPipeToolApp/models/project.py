@@ -9,10 +9,6 @@ class Project(BaseModel):
         self.table_name = 'projects'
         self.item_type = 'project'
         
-    @property
-    def admin_required_methods(self):
-        return [self.create, self.update, self.delete]
-    
     def get_all(self):
         """모든 프로젝트 조회"""
         query = f"SELECT * FROM {self.table_name} ORDER BY name"
@@ -79,6 +75,7 @@ class Project(BaseModel):
         """
         return self._fetch_all(query)
 
+    @require_admin
     def create(self, name, path=None, description=None):
         """프로젝트 생성"""
         query = f"""
@@ -94,11 +91,13 @@ class Project(BaseModel):
             self.logger.error(f"프로젝트 생성 중 오류 발생: {str(e)}", exc_info=True)
             raise
 
+    @require_admin
     def update(self, project_id, name):
         """프로젝트 정보 수정"""
         query = f"UPDATE {self.table_name} SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
         return self._execute(query, (name, project_id))
 
+    @require_admin
     def delete(self, project_id):
         """프로젝트 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"

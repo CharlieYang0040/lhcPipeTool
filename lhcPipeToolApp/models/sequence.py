@@ -9,10 +9,6 @@ class Sequence(BaseModel):
         self.table_name = 'sequences'
         self.item_type = 'sequence'
         
-    @property
-    def admin_required_methods(self):
-        return [self.create, self.update, self.delete]
-    
     def get_all(self):
         """모든 시퀀스 조회"""
         query = f"SELECT * FROM {self.table_name} ORDER BY name"
@@ -33,6 +29,7 @@ class Sequence(BaseModel):
         query = f"SELECT * FROM {self.table_name} WHERE project_id = ? ORDER BY name"
         return self._fetch_all(query, (project_id,))
     
+    @require_admin
     def create(self, name, project_id, level_path=None, level_sequence_path=None, description=None):
         """시퀀스 생성"""
         query = f"""
@@ -48,11 +45,13 @@ class Sequence(BaseModel):
             self.logger.error(f"시퀀스 생성 중 오류 발생: {str(e)}", exc_info=True)
             raise
 
+    @require_admin
     def update(self, sequence_id, name):
         """시퀀스 정보 수정"""
         query = f"UPDATE {self.table_name} SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
         return self._execute(query, (name, sequence_id))
 
+    @require_admin
     def delete(self, sequence_id):
         """시퀀스 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"

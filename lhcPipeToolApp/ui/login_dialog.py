@@ -20,7 +20,11 @@ class LoginDialog(QDialog):
         self.setModal(True)
         self.setStyleSheet(get_dialog_style())
         self.setMinimumWidth(500)
+
+        self.setup_ui()
+        self.set_last_login_user()
         
+    def setup_ui(self):
         main_layout = QHBoxLayout()
         
         # 로고 영역
@@ -51,18 +55,15 @@ class LoginDialog(QDialog):
         self.name_input.setPlaceholderText("사용자명")
         form_layout.addWidget(QLabel("사용자명:"))
         form_layout.addWidget(self.name_input)
-        
-        # 마지막 로그인 사용자 자동 입력
-        last_user = self.settings.value('last_login_user', '')
-        if last_user:
-            self.name_input.setText(last_user)
-        
+                
         # 비밀번호 입력
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("비밀번호")
         self.password_input.setEchoMode(QLineEdit.Password)
         form_layout.addWidget(QLabel("비밀번호:"))
         form_layout.addWidget(self.password_input)
+
+
         
         # 버튼 영역
         button_layout = QHBoxLayout()
@@ -133,3 +134,9 @@ class LoginDialog(QDialog):
                 f"비밀번호가 초기화되었습니다.\n임시 비밀번호: {temp_password}")
         except Exception as e:
             QMessageBox.critical(self, "오류", f"비밀번호 초기화 실패: {str(e)}")
+
+    def set_last_login_user(self):
+        last_user = self.settings.value('last_login_user', '')
+        if last_user:
+            self.name_input.setText(last_user)
+            self.password_input.setFocus()  # 비밀번호 입력창으로 커서 이동

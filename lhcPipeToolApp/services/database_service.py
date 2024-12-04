@@ -268,3 +268,198 @@ class DatabaseService:
             self.logger.error(f"테이블 통계 조회 실패: {str(e)}", exc_info=True)
             QMessageBox.warning(parent_widget, "오류", "테이블 통계 조회 중 오류가 발생했습니다.")
 
+    def get_all_tables(self):
+        """모든 테이블 목록 조회"""
+        return self.database_model.get_all_tables()
+
+    def get_table_data(self, table_name):
+        """테이블 데이터 조회"""
+        return self.database_model.get_table_data(table_name)
+
+    def get_table_structure(self, table_name):
+        """테이블 구조 조회"""
+        try:
+            columns = self.database_model.get_table_columns(table_name)
+            if not columns:
+                self.logger.error(f"테이블 '{table_name}'의 컬럼 정보를 찾을 수 없습니다.")
+                return None
+            
+            # 컬럼명 추출
+            column_names = [col['COLUMN_NAME'].strip() for col in columns]
+            return column_names
+            
+        except Exception as e:
+            self.logger.error(f"테이블 구조 조회 실패: {str(e)}")
+            return None
+
+    def create_custom_table(self, table_info):
+        """사용자 정의 테이블 생성"""
+        try:
+            # SQL 생성 (대문자로 변환)
+            columns = []
+            for col in table_info['columns']:
+                column_name = col['name'].upper() if col['name'] else ''
+                column_type = col['type'].upper() if col['type'] else ''
+                column_constraints = col['constraints'].upper() if col['constraints'] else ''
+                
+                column_def = f"{column_name} {column_type}"
+                if column_constraints:
+                    column_def += f" {column_constraints}"
+                columns.append(column_def)
+            
+            table_name = table_info['table_name'].upper()  # 테이블 이름도 대문자로 변환
+            
+            sql = f"""
+                CREATE TABLE {table_name} (
+                    {', '.join(columns)}
+                )
+            """
+            
+            table_cursor = self.database_model._execute(sql)
+            if table_cursor:
+                self.database_model._commit()
+                return True
+            else:
+                self.database_model._rollback()
+                return False
+            
+        except Exception as e:
+            self.logger.error(f"테이블 생성 실패: {str(e)}")
+            return False
+
+    def delete_table_rows(self, table_name, primary_keys):
+        """테이블에서 선택된 행 삭제"""
+        try:
+            # 테이블의 기본키 컬럼 이름 조회
+            pk_column = self._get_primary_key_column(table_name)
+            if not pk_column:
+                raise ValueError("기본키를 찾을 수 없습니다.")
+            
+            # IN 절을 사용하여 여러 행 한 번에 삭제
+            placeholders = ','.join(['?' for _ in primary_keys])
+            sql = f"DELETE FROM {table_name} WHERE {pk_column} IN ({placeholders})"
+            
+            table_cursor = self.database_model._execute(sql, primary_keys)
+            if table_cursor:
+                self.database_model._commit()
+                return True
+            else:
+                self.database_model._rollback()
+                return False
+            
+        except Exception as e:
+            self.logger.error(f"행 삭제 실패: {str(e)}")
+            return False
+
+    def drop_table(self, table_name):
+        """테이블 삭제"""
+        try:
+            drop_cursor = self.database_model.drop_table(table_name)
+            if drop_cursor:
+                self.database_model._commit()
+                return True
+            else:
+                return False
+        except Exception as e:
+            self.database_model._rollback()
+            self.logger.error(f"테이블 삭제 실패: {str(e)}")
+            return False
+
+    def _get_primary_key_column(self, table_name):
+        """테이블의 기본키 컬럼 이름 조회"""
+        try:
+            query = f"""
+                SELECT i.RDB$FIELD_NAME
+                FROM RDB$RELATION_CONSTRAINTS rc
+                JOIN RDB$INDEX_SEGMENTS i ON rc.RDB$INDEX_NAME = i.RDB$INDEX_NAME
+                WHERE rc.RDB$RELATION_NAME = ?
+                AND rc.RDB$CONSTRAINT_TYPE = 'PRIMARY KEY'
+            """
+            
+            result = self.database_model._fetch_one(query, (table_name.upper(),))
+            return result['rdb$field_name'].strip() if result else None
+        
+        except Exception as e:
+            self.logger.error(f"기본키 조회 실패: {str(e)}")
+            return None
+
+    def update_table_data(self, table_name, updated_data):
+        """테이블 데이터 업데이트"""
+        try:
+            # 테이블의 컬럼 정보 조회
+            columns_info = self.database_model.get_table_columns(table_name)
+            self.logger.debug(f"테이블 컬럼 정보: {columns_info}")
+            
+            column_types = {
+                col['column_name'].strip(): col['data_type']  # 키 이름 수정
+                for col in columns_info
+            }
+            
+            # 테이블의 기본키 컬럼 이름 조회
+            pk_column = self._get_primary_key_column(table_name)
+            if not pk_column:
+                raise ValueError("기본키를 찾을 수 없습니다.")
+            
+            for row_data in updated_data:
+                # 실제 데이터의 컬럼 이름 중에서 기본키 컬럼 찾기
+                actual_pk_column = next(
+                    (col for col in row_data.keys() 
+                     if col.upper() == pk_column.upper()),
+                    None
+                )
+                
+                if not actual_pk_column:
+                    raise ValueError(f"기본키 컬럼 '{pk_column}'을(를) 찾을 수 없습니다.")
+                
+                # 기본키 값 추출
+                pk_value = row_data[actual_pk_column]
+                
+                # 데이터 타입에 따른 값 처리
+                processed_data = {}
+                for col, value in row_data.items():
+                    col_upper = col.upper()
+                    if col_upper == 'UPDATED_AT':
+                        processed_data[col] = datetime.now()
+                    elif value == '' and column_types.get(col_upper) not in [37]:  # CHAR 타입만 빈 문자열 허용
+                        processed_data[col] = None
+                    else:
+                        processed_data[col] = value
+                
+                # 업데이트할 컬럼과 값 설정 (기본키 제외)
+                set_clause = ', '.join([
+                    f"{col} = ?" for col in processed_data.keys() 
+                    if col.upper() != pk_column.upper()
+                ])
+                values = [
+                    processed_data[col] for col in processed_data.keys() 
+                    if col.upper() != pk_column.upper()
+                ]
+                values.append(pk_value)
+                
+                # SQL 업데이트 쿼리 실행
+                sql = f"UPDATE {table_name} SET {set_clause} WHERE {pk_column} = ?"
+                self.logger.debug(f"실행할 SQL: {sql}")
+                self.logger.debug(f"바인딩할 값들: {values}")
+                
+                self.database_model._execute(sql, values)
+            
+            self.database_model._commit()
+            return True
+        
+        except Exception as e:
+            self.database_model._rollback()
+            self.logger.error(f"데이터 업데이트 실패: {str(e)}", exc_info=True)
+            return False
+
+    def add_column(self, table_name, column_definition):
+        """테이블에 새 컬럼 추가"""
+        try:
+            sql = f"ALTER TABLE {table_name} ADD {column_definition}"
+            self.database_model._execute(sql)
+            self.database_model._commit()
+            return True
+        except Exception as e:
+            self.database_model._rollback()
+            self.logger.error(f"컬럼 추가 실패: {str(e)}", exc_info=True)
+            return False
+

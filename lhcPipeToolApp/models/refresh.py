@@ -32,7 +32,7 @@ class Refresh(BaseModel):
             RETURNING id
         """
         try:
-            result = self.db_connector.fetch_one(
+            result = self._fetch_one(
                 query, 
                 (worker_id, status, message, str(root_path) if root_path else None)
             )

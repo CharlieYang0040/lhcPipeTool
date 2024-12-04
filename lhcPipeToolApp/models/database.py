@@ -131,3 +131,8 @@ class Database(BaseModel):
         except Exception as e:
             self.logger.error(f"데이터베이스 백업 실패: {str(e)}")
             raise
+
+    def drop_table(self, table_name):
+        """테이블 삭제"""
+        query = f"DROP TABLE {table_name}"
+        return self._execute(query)

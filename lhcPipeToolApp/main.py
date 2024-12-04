@@ -2,8 +2,6 @@ import sys
 from PySide6.QtWidgets import QApplication, QDialog
 from .config.db_config import DBConfig
 from .database.db_connector import DBConnector
-from .database.table_manager import TableManager
-from .services.database_service import DatabaseService
 from .services.worker_service import WorkerService
 from .ui.main_window import MainWindow
 from .utils.logger import setup_logger

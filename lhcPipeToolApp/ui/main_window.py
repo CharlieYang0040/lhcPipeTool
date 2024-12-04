@@ -92,7 +92,7 @@ class MainWindow(QMainWindow):
         self.table_manager.initialize_settings()
         self.init_ui()
         self.setup_menu()
-        
+    
     def init_ui(self):
         """UI 초기화"""
         # 화면 정보 가져오기
@@ -229,8 +229,10 @@ class MainWindow(QMainWindow):
         manager_menu = menubar.addMenu('관리자')
         render_manager_action = manager_menu.addAction('렌더 관리자')
         render_manager_action.triggered.connect(self.show_render_manager)
-        manage_workers_action = manager_menu.addAction('작업자 관리')
+        manage_workers_action = manager_menu.addAction('작업자 관리자')
         manage_workers_action.triggered.connect(self.show_worker_manager)
+        table_manager_action = manager_menu.addAction('테이블 관리자')
+        table_manager_action.triggered.connect(self.show_table_manager)
         
         # 설정 메뉴
         settings_menu = menubar.addMenu('설정')
@@ -296,12 +298,21 @@ class MainWindow(QMainWindow):
         )
         dialog.exec_()
 
+    # @require_admin
     def show_worker_manager(self):
         """작업자 관리 다이얼로그"""
         from .worker_manager_dialog import WorkerManagerDialog
         dialog = WorkerManagerDialog(self.worker_service, self)
         dialog.exec_()
 
+    # @require_admin
+    def show_table_manager(self):
+        """테이블 관리 다이얼로그"""
+        from .table_manager_dialog import TableManagerDialog
+        dialog = TableManagerDialog(self.table_manager, self.database_service, self)
+        dialog.exec_()
+
+    @require_admin
     def refresh_project_structure(self):
         """프로젝트 구조 새로고침"""
         if self.refresh_service.refresh_project_structure(self):

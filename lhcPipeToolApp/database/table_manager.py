@@ -114,6 +114,10 @@ class TableManager:
             # 컬럼명에서 공백 제거하고 리스트로 변환
             columns = [col[0].strip() for col in cursor.fetchall()]
             
+            if not columns:
+                self.logger.error(f"테이블 '{table_name}'의 컬럼 정보를 찾을 수 없습니다.")
+                return None
+            
             # 로그 출력을 위한 포맷팅
             max_length = max(len(col) for col in columns)
             formatted_columns = [f"{col:<{max_length}}" for col in columns]
@@ -160,5 +164,18 @@ class TableManager:
                 return False
         self.logger.info("모든 테이블 존재 여부 확인 완료")
         return True
+
+    def drop_table(self, table_name):
+        """테이블 삭제"""
+        try:
+            cursor = self.db_connector.cursor()
+            self.logger.info(f"테이블 삭제 시도: {table_name}")
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+            self.db_connector.commit()
+            self.logger.info(f"테이블 삭제 완료: {table_name}")
+            return True
+        except Exception as e:
+            self.logger.error(f"테이블 삭제 실패: {str(e)}", exc_info=True)
+            return False
 
         

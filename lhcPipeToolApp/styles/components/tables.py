@@ -14,6 +14,9 @@ def get_table_style():
         }}
 
         /* 테이블 헤더 스타일 */
+        QHeaderView {{
+            background-color: {COLORS['surface']};
+        }}
         QHeaderView::section {{
             background-color: {COLORS['surface']};
             color: {COLORS['text']};
@@ -38,6 +41,16 @@ def get_table_style():
         QTableWidget::item {{
             padding: {SIZES['spacing_medium']}px;
             border-bottom: {SIZES['border_width']}px solid {COLORS['border']};
+        }}
+
+        /* 행집기 위젯 스타일 */
+        QTableWidget QLineEdit {{
+            background-color: {COLORS['background']};
+            color: {COLORS['text']};
+            border: 1px solid {COLORS['border']};
+            padding: {SIZES['spacing_small']}px;
+            font-family: '{FONTS['family']}';
+            font-size: {SIZES['font_size']}px;
         }}
 
         /* 행 전체 호버 효과 */
