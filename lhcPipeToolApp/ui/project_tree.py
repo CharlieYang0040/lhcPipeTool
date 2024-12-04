@@ -1,11 +1,6 @@
 """프로젝트 트리 위젯"""
-import os
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QMessageBox, QApplication
 from PySide6.QtCore import Signal, Qt, QSize, QEvent
-from ..services.project_service import ProjectService
-from ..services.version_services import (
-    ShotVersionService, SequenceVersionService, ProjectVersionService
-)
 from ..utils.logger import setup_logger
 from .project_tree_item import CustomTreeItemWidget
 from .new_shot_dialog import NewShotDialog
@@ -20,16 +15,11 @@ class ProjectTreeWidget(QTreeWidget):
     item_selected = Signal(int)
     item_type_changed = Signal(str, int)
 
-    def __init__(self, db_connector):
+    def __init__(self, project_service, version_services):
         super().__init__()
         self.logger = setup_logger(__name__)
-        self.db_connector = db_connector
-        self.project_service = ProjectService(db_connector)
-        self.version_services = {
-            "shot": ShotVersionService(db_connector, self.logger),
-            "sequence": SequenceVersionService(db_connector, self.logger),
-            "project": ProjectVersionService(db_connector, self.logger)
-        }
+        self.project_service = project_service
+        self.version_services = version_services
         self.app_state = AppState()
         self.setup_ui()
         self.load_projects()

@@ -9,14 +9,11 @@ from PySide6.QtGui import QIcon
 
 from ..utils.logger import setup_logger
 from ..utils.preview_generator import PreviewGenerator
-from ..services.version_services import (
-    ShotVersionService, SequenceVersionService, ProjectVersionService
-)
 from ..services.file_manage_service import FileManageService
 from ..styles.components import get_dialog_style, get_button_style
 
 class NewVersionDialog(QDialog):
-    def __init__(self, db_connector, project_tree, item_id, item_type, parent=None):
+    def __init__(self, version_services, settings_service, project_tree, item_id, item_type, parent=None):
         super().__init__(parent)
         self.item_id = item_id
         self.item_type = item_type
@@ -24,13 +21,8 @@ class NewVersionDialog(QDialog):
         self.preview_generator = PreviewGenerator()
         self.settings = QSettings('LHC', 'PipeTool')
         self.project_tree = project_tree
-        self.file_manager = FileManageService(db_connector)
-        self.version_services = {
-            "shot": ShotVersionService(db_connector, self.logger),
-            "sequence": SequenceVersionService(db_connector, self.logger),
-            "project": ProjectVersionService(db_connector, self.logger)
-        }
-        
+        self.version_services = version_services
+        self.file_manager = FileManageService(version_services, settings_service)
         self.setup_ui()
         self.load_worker_history()
         

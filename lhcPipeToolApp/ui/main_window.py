@@ -7,12 +7,21 @@ from PySide6.QtWidgets import (
 from .project_tree import ProjectTreeWidget
 from .version_table import VersionTableWidget
 from .detail_panel import DetailPanel
+
+from ..models.project import Project
+from ..models.sequence import Sequence
+from ..models.shot import Shot
+from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
 from ..models.worker import Worker
+from ..models.refresh import Refresh
+from ..models.database import Database
+
 from ..services.project_service import ProjectService
 from ..services.worker_service import WorkerService
 from ..services.refresh_service import RefreshService
 from ..services.database_service import DatabaseService
 from ..services.version_services import (ShotVersionService, SequenceVersionService, ProjectVersionService)
+from ..services.settings_service import SettingsService
 
 from ..database.table_manager import TableManager
 from ..utils.logger import setup_logger
@@ -34,20 +43,53 @@ class MainWindow(QMainWindow):
         self.table_manager = TableManager(db_connector)
         
         # 서비스 초기화
-        # TODO 모델 계층 구조 변경 후 수정 필요
-        self.project_service = ProjectService(db_connector)
-        self.version_services = {
-            "shot": ShotVersionService(db_connector, self.logger),
-            "sequence": SequenceVersionService(db_connector, self.logger),
-            "project": ProjectVersionService(db_connector, self.logger)
-        }
+        # self.worker_service 초기화
         self.worker_service = WorkerService(Worker(db_connector))
-        self.refresh_service = RefreshService(db_connector, self.project_service, self.version_services, self.logger)
-        self.database_service = DatabaseService(db_connector, self.logger)
         
-        # settings 테이블 초기화
+        # self.project_service 초기화
+        self.project_service = ProjectService(
+            Project(db_connector), 
+            Sequence(db_connector), 
+            Shot(db_connector), 
+            {
+                "shot": ShotVersion(db_connector),
+                "sequence": SequenceVersion(db_connector),
+                "project": ProjectVersion(db_connector)
+            }, 
+            self.worker_service
+        )
+        
+        # self.version_services 초기화
+        self.version_services = {
+            "shot": ShotVersionService(
+                ShotVersion(db_connector), 
+                self.worker_service
+            ),
+            "sequence": SequenceVersionService(
+                SequenceVersion(db_connector), 
+                self.worker_service
+            ),
+            "project": ProjectVersionService(
+                ProjectVersion(db_connector), 
+                self.worker_service
+            )
+        }
+        
+        # self.refresh_service 초기화
+        self.refresh_service = RefreshService(
+            Refresh(db_connector), 
+            self.project_service, 
+            self.version_services, 
+            self.app_state.current_worker['id']
+        )
+        
+        # self.database_service 초기화
+        self.database_service = DatabaseService(Database(db_connector))
+
+        # self.settings_service 초기화
+        self.settings_service = SettingsService(db_connector)
+        
         self.table_manager.initialize_settings()
-        
         self.init_ui()
         self.setup_menu()
         
@@ -124,15 +166,15 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 2)  # 상세 정보 패널
         
         # 프로젝트 트리
-        self.project_tree = ProjectTreeWidget(self.db_connector)
+        self.project_tree = ProjectTreeWidget(self.project_service, self.version_services)
         splitter.addWidget(self.project_tree)
         
         # 버전 테이블
-        self.version_table = VersionTableWidget(self.db_connector, self.project_tree)
+        self.version_table = VersionTableWidget(self.version_services, self.settings_service, self.project_tree)
         splitter.addWidget(self.version_table)
         
         # 상세 정보 패널
-        self.detail_panel = DetailPanel(self.db_connector)
+        self.detail_panel = DetailPanel(self.project_service, self.version_services)
         splitter.addWidget(self.detail_panel)
         
         # 메인 윈도우 스타일 수정
@@ -176,17 +218,18 @@ class MainWindow(QMainWindow):
         project_menu = menubar.addMenu('프로젝트')
         new_project_action = project_menu.addAction('새 프로젝트')
         new_project_action.triggered.connect(self.show_new_project_dialog)
+        new_sequence_action = project_menu.addAction('새 시퀀스')
+        new_sequence_action.triggered.connect(self.show_new_sequence_dialog)
+        new_shot_action = project_menu.addAction('새 샷')
+        new_shot_action.triggered.connect(self.show_new_shot_dialog)
+        new_version_action = project_menu.addAction('새 버전')
+        new_version_action.triggered.connect(self.show_new_version_dialog)
         
         # 버전 메뉴
-        version_menu = menubar.addMenu('버전')
-        new_version_action = version_menu.addAction('새 버전')
-        new_version_action.triggered.connect(self.show_new_version_dialog)
-        render_manager_action = version_menu.addAction('렌더 관리자')
+        manager_menu = menubar.addMenu('관리자')
+        render_manager_action = manager_menu.addAction('렌더 관리자')
         render_manager_action.triggered.connect(self.show_render_manager)
-        
-        # 작업자 메뉴
-        worker_menu = menubar.addMenu('작업자')
-        manage_workers_action = worker_menu.addAction('작업자 관리')
+        manage_workers_action = manager_menu.addAction('작업자 관리')
         manage_workers_action.triggered.connect(self.show_worker_manager)
         
         # 설정 메뉴
@@ -201,14 +244,14 @@ class MainWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             self.project_tree.load_projects()
 
-    def show_sequence_dialog(self, project_id, sequence=None):
+    def show_new_sequence_dialog(self, project_id, sequence=None):
         """시퀀스 생성/편집 다이얼로그"""
         from .new_sequence_dialog import SequenceDialog
         dialog = SequenceDialog(self.project_service, project_id, sequence, self)
         if dialog.exec_() == QDialog.Accepted:
             self.project_tree.load_projects()
 
-    def show_shot_dialog(self, sequence_id, shot=None):
+    def show_new_shot_dialog(self, sequence_id, shot=None):
         """샷 생성/편집 다이얼로그"""
         from .new_shot_dialog import ShotDialog
         dialog = ShotDialog(self.project_service, sequence_id, shot, self)
@@ -249,7 +292,12 @@ class MainWindow(QMainWindow):
     def show_settings_dialog(self):
         """설정 다이얼로그"""
         from .settings_dialog import SettingsDialog
-        dialog = SettingsDialog(self.db_connector, self)
+        dialog = SettingsDialog(
+            self.project_service, 
+            self.settings_service, 
+            self.version_services, 
+            self
+        )
         dialog.exec_()
 
     def show_worker_manager(self):

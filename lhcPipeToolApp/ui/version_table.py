@@ -4,9 +4,6 @@ from PySide6.QtWidgets import (QTableWidget, QTableWidgetItem, QVBoxLayout,
                                QWidget, QMessageBox, QMenu, QHeaderView, QDialog, QApplication)
 from PySide6.QtCore import Qt, Signal, QEvent, QTimer
 from PySide6.QtGui import QColor
-from ..services.version_services import (
-    ShotVersionService, SequenceVersionService, ProjectVersionService
-)
 from ..ui.new_version_dialog import NewVersionDialog
 from ..utils.logger import setup_logger
 from ..utils.db_utils import convert_date_format
@@ -16,18 +13,14 @@ from ..styles.components import get_table_style
 class VersionTableWidget(QWidget):
     version_selected = Signal(int)
 
-    def __init__(self, db_connector, project_tree):
+    def __init__(self, version_services, settings_service, project_tree):
         super().__init__()
         self.logger = setup_logger(__name__)
-        self.db_connector = db_connector
+        self.version_services = version_services
+        self.settings_service = settings_service
         self.project_tree = project_tree
-        self.version_services = {
-            "shot": ShotVersionService(db_connector, self.logger),
-            "sequence": SequenceVersionService(db_connector, self.logger),
-            "project": ProjectVersionService(db_connector, self.logger)
-        }
         self.app_state = AppState()
-        self.new_version_dialog = NewVersionDialog(db_connector, project_tree, item_id=None, item_type="shot", parent=self)
+        self.new_version_dialog = NewVersionDialog(version_services, settings_service, project_tree, item_id=None, item_type="shot", parent=self)
         
         # 화면 해상도에 따른 스케일 팩터 계산
         self.scale_factor = self.calculate_scale_factor()
@@ -127,16 +120,23 @@ class VersionTableWidget(QWidget):
         """버전 수정"""
         version_details = self.version_services[self.app_state.current_item_type].get_version_details(item_id)
         if version_details:
-            dialog = NewVersionDialog(self.db_connector, self.app_state.current_item_id, self.app_state.current_item_type, parent=self)
-            dialog.worker_input.setCurrentText(version_details['worker_name'])
-            dialog.file_path_input.setText(version_details['file_path'])
-            dialog.preview_path_input.setText(version_details['preview_path'])
-            dialog.comment_input.setText(f"Resubmit from {version_details['name']}")
+            dialog = NewVersionDialog(
+                self.version_services, 
+                self.settings_service, 
+                self.project_tree, 
+                item_id=self.app_state.current_item_id, 
+                item_type=self.app_state.current_item_type, 
+                parent=self
+            )
+            dialog.worker_input.setCurrentText(version_details.get('worker_name', ''))
+            dialog.file_path_input.setText(version_details.get('file_path', ''))
+            dialog.preview_path_input.setText(version_details.get('preview_path', ''))
+            dialog.comment_input.setText(f"Resubmit from {version_details.get('name', '')}")
             
             # 상태 설정
             status_buttons = dialog.status_group.buttons()
             for button in status_buttons:
-                if button.text() == version_details['status']:
+                if button.text() == version_details.get('status', ''):
                     button.setChecked(True)
                     break
             
@@ -164,9 +164,9 @@ class VersionTableWidget(QWidget):
         item_id = self.app_state.current_item_id
         
         # 기본값 설정
-        if item_type == None:
+        if item_type is None:
             item_type = 'project'
-        if item_id == None:
+        if item_id is None:
             item_id = 1
             
         self.table.setRowCount(0)
@@ -190,12 +190,12 @@ class VersionTableWidget(QWidget):
                     # 수직 헤더 번호 설정
                     self.table.setVerticalHeaderItem(row, QTableWidgetItem(str(row + 1)))
                     
-                    # 버전 정보 매핑 시도
-                    version_name = version[1] if len(version) > 1 else "Unknown"
-                    version_id = version[0] if len(version) > 0 else -1
-                    worker_name = version[3] if len(version) > 3 else "Unknown"
-                    created_at = version[4] if len(version) > 4 else "Unknown"
-                    status = version[5] if len(version) > 5 else "Unknown"
+                    # 버전 정보 매핑
+                    version_name = version.get('name', 'Unknown')
+                    version_id = version.get('id', -1)
+                    worker_name = version.get('worker_name', 'Unknown')
+                    created_at = version.get('created_at', 'Unknown')
+                    status = version.get('status', 'Unknown')
                     
                     self.logger.debug(f"""버전 정보 매핑:
                         version_name: {version_name}
@@ -240,6 +240,7 @@ class VersionTableWidget(QWidget):
             
         except Exception as e:
             self.logger.error(f"버전 목록 로드 실패: {str(e)}", exc_info=True)
+
 
     def clear_versions(self):
         """버전 테이블 초기화"""

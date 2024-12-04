@@ -1,6 +1,6 @@
 """작업자 관리 서비스"""
-from ..utils.logger import setup_logger
 from ..utils.event_system import EventSystem
+from ..utils.logger import setup_logger
 
 class WorkerService:
     def __init__(self, worker_model):

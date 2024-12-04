@@ -1,31 +1,21 @@
 """설정 다이얼로그"""
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, 
-                              QPushButton, QLabel, QMessageBox, 
+                              QPushButton, QMessageBox, 
                               QTabWidget, QWidget, QFormLayout, 
                               QGroupBox, QHBoxLayout, QFileDialog)
-import json
-import os
 from pathlib import Path
-from ..services.project_service import ProjectService
-from ..services.version_services import (ProjectVersionService, SequenceVersionService, ShotVersionService)
-from ..database.table_manager import TableManager
+
 from ..utils.logger import setup_logger
-from ..services.settings_service import SettingsService
+
 
 class SettingsDialog(QDialog):
-    def __init__(self, db_connector, parent=None):
+    def __init__(self, project_service, settings_service, version_services, parent=None):
         super().__init__(parent)
         self.logger = setup_logger(__name__)
-        self.db_connector = db_connector
-        self.settings_service = SettingsService(db_connector)
+        self.project_service = project_service
+        self.settings_service = settings_service
+        self.version_services = version_services
         self.setup_ui()
-        self.project_service = ProjectService(self.db_connector)
-        self.version_services = {
-            "project": ProjectVersionService(self.db_connector, self.logger),
-            "sequence": SequenceVersionService(self.db_connector, self.logger),
-            "shot": ShotVersionService(self.db_connector, self.logger)
-        }
-        self.table_manager = TableManager(self.db_connector)
         
     def setup_ui(self):
         self.setWindowTitle("Settings")

@@ -1,20 +1,14 @@
 """버전 서비스 기본 클래스"""
-from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
-from ..models.worker import Worker
-from ..utils.db_utils import convert_date_format
 from ..utils.event_system import EventSystem
+from ..utils.logger import setup_logger
+from ..utils.db_utils import convert_date_format
 
 class BaseVersionService:
-    def __init__(self, db_connector, logger):
-        self.db_connector = db_connector
-        self.logger = logger
+    def __init__(self, version_model, worker_service):
+        self.logger = setup_logger(__name__)
         self.table_name = None  # 하위 클래스에서 정의
-        self.version_models = {
-            "shot_id": ShotVersion(db_connector),
-            "sequence_id": SequenceVersion(db_connector),
-            "project_id": ProjectVersion(db_connector)
-        }
-        self.worker_model = Worker(db_connector)
+        self.version_model = version_model
+        self.worker_service = worker_service
 
     def create_version(self, item_id, version_number=None, worker_name=None, 
                       file_path=None, render_path=None, preview_path=None, comment=None, status=None):
@@ -54,9 +48,9 @@ class BaseVersionService:
                 'comment': comment,
                 'status': status
             }
-            result = self.version_models[self.get_foreign_key()].create(**create_data)
+            result = self.version_model.create(**create_data)
             if result:
-                self.db_connector.commit()
+                self._commit()
                 EventSystem.notify('version_updated')  # 이벤트 발생
                 return result
             else:
@@ -68,7 +62,7 @@ class BaseVersionService:
 
     def _get_worker(self, worker_name):
         """작업자 조회"""
-        worker = self.worker_model.get_by_name(worker_name)
+        worker = self.worker_service.get_worker_by_name(worker_name)
         if not worker:
             return None
         return worker
@@ -98,8 +92,6 @@ class BaseVersionService:
     def get_all_versions(self, item_id):
         """모든 버전 조회"""
         try:
-            cursor = self.db_connector.cursor()
-            
             query = f"""
                 SELECT 
                     v.id,
@@ -114,8 +106,7 @@ class BaseVersionService:
                 ORDER BY v.version_number DESC
             """
             
-            cursor.execute(query, (item_id,))
-            return cursor.fetchall()
+            return self.version_model._fetch_all(query, (item_id,))
             
         except Exception as e:
             self.logger.error(f"버전 조회 중 오류 발생: {str(e)}", exc_info=True)
@@ -124,8 +115,6 @@ class BaseVersionService:
     def get_project_details(self, project_id):
         """프로젝트 상세 정보 조회"""
         try:
-            cursor = self.db_connector.cursor()
-            
             query = """
                 SELECT p.*,
                        (SELECT COUNT(*) FROM PROJECT_VERSIONS 
@@ -136,21 +125,13 @@ class BaseVersionService:
                 FROM PROJECTS p
                 WHERE p.id = ?
             """
-            cursor.execute(query, (project_id,))
-            result = cursor.fetchone()
+            result = self.version_model._fetch_one(query, (project_id,))
             
-            if not result:
-                return None
-                
-            return {
-                'id': result[0],
-                'name': result[1],
-                'path': result[2],
-                'description': result[3],
-                'created_at': convert_date_format(result[4]),
-                'version_count': result[5],
-                'preview_path': result[6]
-            }
+            if result:
+                project_details = result.copy()
+                project_details['created_at'] = convert_date_format(project_details['created_at'])
+                return project_details
+            return None
             
         except Exception as e:
             self.logger.error(f"프로젝트 상세 정보 조회 실패: {str(e)}", exc_info=True)
@@ -159,8 +140,6 @@ class BaseVersionService:
     def get_sequence_details(self, sequence_id):
         """시퀀스 상세 정보 조회"""
         try:
-            cursor = self.db_connector.cursor()
-            
             query = """
                 SELECT s.id, s.name, s.project_id, s.level_path, s.level_sequence_path, s.description, s.created_at,
                     p.name as project_name,
@@ -173,24 +152,13 @@ class BaseVersionService:
                 JOIN PROJECTS p ON s.project_id = p.id
                 WHERE s.id = ?
             """
-            cursor.execute(query, (sequence_id,))
-            result = cursor.fetchone()
-            
-            if not result:
-                return None
-                
-            return {
-                'id': result[0],
-                'name': result[1],
-                'project_id': result[2],
-                'level_path': result[3],
-                'level_sequence_path': result[4],
-                'description': result[5],
-                'created_at': convert_date_format(result[6]),
-                'project_name': result[7],
-                'shot_count': result[8],
-                'preview_path': result[9]
-            }
+            result = self.version_model._fetch_one(query, (sequence_id,))
+
+            if result:
+                sequence_details = result.copy()
+                sequence_details['created_at'] = convert_date_format(sequence_details['created_at'])
+                return sequence_details
+            return None
             
         except Exception as e:
             self.logger.error(f"시퀀스 상세 정보 조회 실패: {str(e)}", exc_info=True)
@@ -200,8 +168,6 @@ class BaseVersionService:
     def get_shot_details(self, shot_id):
         """샷 상세 정보 조회"""
         try:
-            cursor = self.db_connector.cursor()
-            
             query = """
                 SELECT sh.*,
                        s.name as sequence_name,
@@ -216,24 +182,13 @@ class BaseVersionService:
                 JOIN PROJECTS p ON s.project_id = p.id
                 WHERE sh.id = ?
             """
-            cursor.execute(query, (shot_id,))
-            result = cursor.fetchone()
+            result = self.version_model._fetch_one(query, (shot_id,))
             
-            if not result:
-                return None
-                
-            return {
-                'id': result[0],
-                'name': result[1],
-                'sequence_id': result[2],
-                'status': result[3],
-                'description': result[4],
-                'created_at': convert_date_format(result[5]),
-                'sequence_name': result[6],
-                'project_name': result[7],
-                'version_count': result[8],
-                'preview_path': result[9]
-            }
+            if result:
+                shot_details = result.copy()
+                shot_details['created_at'] = convert_date_format(shot_details['created_at'])
+                return shot_details
+            return None
             
         except Exception as e:
             self.logger.error(f"샷 상세 정보 조회 실패: {str(e)}", exc_info=True)
@@ -242,8 +197,6 @@ class BaseVersionService:
     def get_version_details(self, version_id):
         """버전 상세 정보 조회"""
         try:
-            cursor = self.db_connector.cursor()
-            
             query = f"""
                 SELECT 
                     v.id,
@@ -261,22 +214,12 @@ class BaseVersionService:
                 WHERE v.id = ?
             """
             
-            cursor.execute(query, (version_id,))
-            result = cursor.fetchone()
+            result = self.version_model._fetch_one(query, (version_id,))
             
             if result:
-                return {
-                    'id': result[0],
-                    'name': result[1],
-                    'version_number': result[2],
-                    'worker_name': result[3],
-                    'status': result[4],
-                    'file_path': result[5],
-                    'preview_path': result[6],
-                    'render_path': result[7],
-                    'comment': result[8],
-                    'created_at': convert_date_format(result[9])
-                }
+                version_details = result.copy()
+                version_details['created_at'] = convert_date_format(version_details['created_at'])
+                return version_details
             return None
             
         except Exception as e:
@@ -285,7 +228,7 @@ class BaseVersionService:
 
     def update_version(self, version_id, status=None, comment=None):
         """버전 정보 업데이트"""
-        return self.version_models[self.get_foreign_key()].update(version_id, status=status, comment=comment)
+        return self.version_model.update(version_id, status=status, comment=comment)
 
     def delete_version(self, version_id):
         """버전 삭제"""
@@ -293,7 +236,7 @@ class BaseVersionService:
             version = self.get_version_details(version_id)
             if not version:
                 return False
-            return self.version_models[self.get_foreign_key()].delete(version_id)
+            return self.version_model.delete(version_id)
             
         except Exception as e:
             self.logger.error(f"버전 삭제 중 예외 발생: {str(e)}", exc_info=True)
@@ -302,9 +245,7 @@ class BaseVersionService:
     def get_render_root(self):
         """렌더 파일 저장 루트 경로"""
         try:
-            cursor = self.db_connector.cursor()
-            cursor.execute("SELECT setting_value FROM settings WHERE setting_key = 'render_root'")
-            result = cursor.fetchone()
+            result = self._fetch_one("SELECT setting_value FROM settings WHERE setting_key = 'render_root'")
             return result[0] if result else "D:/WORKDATA/lhcPipeTool/TestSequence"
         except Exception as e:
             self.logger.error(f"렌더 경로 조회 실패: {str(e)}")
@@ -316,4 +257,4 @@ class BaseVersionService:
     
     def get_latest_version(self, item_id):
         """최신 버전 조회"""
-        return self.version_models[self.get_foreign_key()].get_latest_version(item_id)
+        return self.version_model.get_latest_version(item_id)

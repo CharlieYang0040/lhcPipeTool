@@ -6,10 +6,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QPixmap
-from ..services.project_service import ProjectService
-from ..services.version_services import (
-    ShotVersionService, SequenceVersionService, ProjectVersionService
-)
 from ..utils.logger import setup_logger
 from ..utils.db_utils import convert_date_format
 from ..config.app_state import AppState
@@ -49,15 +45,11 @@ class AspectRatioWidget(QWidget):
             self.widget.setGeometry(0, (height - target_height) // 2, width, target_height)
 
 class DetailPanel(QWidget):
-    def __init__(self, db_connector):
+    def __init__(self, project_service, version_services):
         super().__init__()
         self.logger = setup_logger(__name__)
-        self.project_service = ProjectService(db_connector)
-        self.version_services = {
-            "shot": ShotVersionService(db_connector, self.logger),
-            "sequence": SequenceVersionService(db_connector, self.logger),
-            "project": ProjectVersionService(db_connector, self.logger)
-        }
+        self.project_service = project_service
+        self.version_services = version_services
         self.app_state = AppState()
         # 각 타입별 필요한 필드 정의
         self.type_field_configs = {

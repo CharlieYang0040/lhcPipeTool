@@ -1,28 +1,15 @@
 """프로젝트 관리 서비스"""
-from ..models.project import Project
-from ..models.sequence import Sequence
-from ..models.shot import Shot
-from ..models.version_models import ShotVersion, SequenceVersion, ProjectVersion
-from ..utils.logger import setup_logger
-from ..utils.db_utils import convert_date_format
-from ..database.table_manager import TableManager
-from .worker_service import WorkerService
 from ..utils.event_system import EventSystem
+from ..utils.logger import setup_logger
 
 class ProjectService:
-    def __init__(self, db_connector):
-        self.db_connector = db_connector
-        self.project_model = Project(db_connector)
-        self.sequence_model = Sequence(db_connector)
-        self.shot_model = Shot(db_connector)
+    def __init__(self, project_model, sequence_model, shot_model, version_model, worker_service):
+        self.project_model = project_model
+        self.sequence_model = sequence_model
+        self.shot_model = shot_model
+        self.worker_service = worker_service
+        self.version_model = version_model
         self.logger = setup_logger(__name__)
-        self.table_manager = TableManager(db_connector)
-        self.worker_service = WorkerService(db_connector)
-        self.version_models = {
-            "shot_id": ShotVersion(db_connector),
-            "sequence_id": SequenceVersion(db_connector),
-            "project_id": ProjectVersion(db_connector)
-        }
         
     def get_project_structure(self, project_id):
         """프로젝트의 전체 구조 조회"""
@@ -51,7 +38,7 @@ class ProjectService:
                 shot_list = []
                 
                 for shot in shots:
-                    latest_version = self.version_models["shot_id"].get_latest_version(shot[0])
+                    latest_version = self.version_model.get_latest_version(shot[0])
                     shot_info = {
                         "id": shot[0],
                         "name": shot[2],

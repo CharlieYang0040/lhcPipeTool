@@ -3,23 +3,12 @@ import os
 import shutil
 from pathlib import Path
 from ..utils.logger import setup_logger
-from ..services.settings_service import SettingsService
-from ..services.version_services import (
-    ProjectVersionService, 
-    SequenceVersionService, 
-    ShotVersionService
-)
 
 class FileManageService:
-    def __init__(self, db_connector):
-        self.db_connector = db_connector
+    def __init__(self, version_services, settings_service):
+        self.version_services = version_services
         self.logger = setup_logger(__name__)
-        self.settings_service = SettingsService(db_connector)
-        self.version_services = {
-            "project": ProjectVersionService(db_connector, self.logger),
-            "sequence": SequenceVersionService(db_connector, self.logger),
-            "shot": ShotVersionService(db_connector, self.logger)
-        }
+        self.settings_service = settings_service
         
     def get_version_path(self, item_type, item_id, version_number):
         """버전 경로 생성"""
