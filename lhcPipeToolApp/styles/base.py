@@ -25,12 +25,14 @@ COLORS = {
 # 크기 변수
 SIZES = {
     # 여백
+    'input_height': 25,
     'spacing_tiny': 2,
     'spacing_small': 4,
     'spacing_medium': 8,
     'spacing_large': 12,
     'spacing_xlarge': 16,
     'spacing_xxlarge': 24,
+    'spacing_xxxlarge': 32,
     
     # 테두리
     'border_width': 1,

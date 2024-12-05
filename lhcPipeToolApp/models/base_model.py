@@ -5,7 +5,7 @@ class BaseModel:
     def __init__(self, db_connector):
         self.db_connector = db_connector
         self.logger = setup_logger(__name__)
-        
+
     def _execute(self, query, params=None):
         """모델 레벨의 쿼리 실행"""
         try:

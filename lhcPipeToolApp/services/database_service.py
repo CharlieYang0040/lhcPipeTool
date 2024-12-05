@@ -20,15 +20,18 @@ class DatabaseService:
                           'WORKERS', 'SETTINGS']
             
             # 모든 테이블 목록 조회
-            available_tables = self.database_model.get_all_tables()
+            available_tables = [t.strip() for t in self.database_model.get_all_tables()]
             if not available_tables:
                 output.append("데이터베이스에 테이블이 없습니다.")
                 self._show_data_in_gui(output, parent_widget)
                 return
 
-            # 지정된 순서대로 테이블 처리
-            tables = [table for table in table_order 
-                     if table in [t.strip() for t in available_tables]]
+            # 지정된 순서의 테이블과 나머지 테이블 분리
+            ordered_tables = [table for table in table_order if table in available_tables]
+            remaining_tables = [table for table in available_tables if table not in table_order]
+            
+            # 모든 테이블 처리 (지정된 순서 + 나머지 테이블)
+            tables = ordered_tables + sorted(remaining_tables)
             
             for table in tables:
                 output.append(f"\n### {table.strip()} 테이블 ###")
@@ -279,18 +282,16 @@ class DatabaseService:
     def get_table_structure(self, table_name):
         """테이블 구조 조회"""
         try:
-            columns = self.database_model.get_table_columns(table_name)
-            if not columns:
-                self.logger.error(f"테이블 '{table_name}'의 컬럼 정보를 찾을 수 없습니다.")
-                return None
+            columns_info = self.database_model.get_table_columns(table_name)
+            if not columns_info:
+                return []
             
-            # 컬럼명 추출
-            column_names = [col['COLUMN_NAME'].strip() for col in columns]
-            return column_names
-            
+            # 컬럼명만 추출하여 반환
+            return [col['column_name'].strip() for col in columns_info]
+        
         except Exception as e:
             self.logger.error(f"테이블 구조 조회 실패: {str(e)}")
-            return None
+            return []
 
     def create_custom_table(self, table_info):
         """사용자 정의 테이블 생성"""
@@ -315,51 +316,53 @@ class DatabaseService:
                 )
             """
             
-            table_cursor = self.database_model._execute(sql)
-            if table_cursor:
+            if self.database_model._execute(sql):
                 self.database_model._commit()
                 return True
-            else:
-                self.database_model._rollback()
-                return False
+            raise Exception("테이블 생성 실패")
             
         except Exception as e:
+            self.database_model._rollback()
             self.logger.error(f"테이블 생성 실패: {str(e)}")
             return False
-
+        
     def delete_table_rows(self, table_name, primary_keys):
         """테이블에서 선택된 행 삭제"""
         try:
             # 테이블의 기본키 컬럼 이름 조회
             pk_column = self._get_primary_key_column(table_name)
             if not pk_column:
-                raise ValueError("기본키를 찾을 수 없습니다.")
+                # PRIMARY KEY가 없는 경우 ID 컬럼을 사용
+                pk_column = 'ID'
+            
+            # 단일 값인 경우에도 리스트로 처리되도록 수정
+            if not isinstance(primary_keys, (list, tuple)):
+                primary_keys = [primary_keys]
             
             # IN 절을 사용하여 여러 행 한 번에 삭제
             placeholders = ','.join(['?' for _ in primary_keys])
             sql = f"DELETE FROM {table_name} WHERE {pk_column} IN ({placeholders})"
             
-            table_cursor = self.database_model._execute(sql, primary_keys)
-            if table_cursor:
+            self.logger.debug(f"삭제 쿼리: {sql}")
+            self.logger.debug(f"삭제할 ID 목록: {primary_keys}")
+            
+            if self.database_model._execute(sql, primary_keys):
                 self.database_model._commit()
                 return True
-            else:
-                self.database_model._rollback()
-                return False
-            
+            raise Exception("행 삭제 실패")
+
         except Exception as e:
+            self.database_model._rollback()
             self.logger.error(f"행 삭제 실패: {str(e)}")
             return False
 
     def drop_table(self, table_name):
         """테이블 삭제"""
         try:
-            drop_cursor = self.database_model.drop_table(table_name)
-            if drop_cursor:
+            if self.database_model.drop_table(table_name):
                 self.database_model._commit()
                 return True
-            else:
-                return False
+            raise Exception("테이블 삭제 실패")
         except Exception as e:
             self.database_model._rollback()
             self.logger.error(f"테이블 삭제 실패: {str(e)}")
@@ -462,4 +465,79 @@ class DatabaseService:
             self.database_model._rollback()
             self.logger.error(f"컬럼 추가 실패: {str(e)}", exc_info=True)
             return False
+
+    def drop_column(self, table_name, column_name):
+        """테이블에서 컬럼 삭제"""
+        try:
+            sql = f"ALTER TABLE {table_name} DROP {column_name}"
+            self.database_model._execute(sql)
+            self.database_model._commit()
+            return True
+        except Exception as e:
+            self.database_model._rollback()
+            self.logger.error(f"컬럼 삭제 실패: {str(e)}", exc_info=True)
+            return False
+
+    def add_table_data(self, table_name, data):
+        """테이블에 새 데이터 추가"""
+        try:
+            # 컬럼 정보 조회
+            columns_info = self.database_model.get_table_columns(table_name)
+            if not columns_info:
+                raise ValueError("테이블 컬럼 정보를 가져올 수 없습니다.")
+
+            # 데이터 타입에 따른 값 처리
+            processed_data = {}
+            for col in columns_info:
+                column_name = col['column_name'].strip()
+                data_type = col['data_type']
+                value = data.get(column_name)
+
+                # 값이 없는 경우 처리
+                if value is None or value == '':
+                    if col.get('not_null'):  # NOT NULL 제약조건이 있는 경우
+                        raise ValueError(f"{column_name} 컬럼은 필수 입력값입니다.")
+                    processed_data[column_name] = None
+                    continue
+
+                # 데이터 타입별 처리
+                try:
+                    if data_type in [7, 8]:  # SMALLINT, INTEGER
+                        processed_data[column_name] = int(value)
+                    elif data_type in [12, 13, 35]:  # DATE, TIME, TIMESTAMP
+                        # 이미 적절한 형식으로 변환되어 있다고 가정
+                        processed_data[column_name] = value
+                    else:
+                        processed_data[column_name] = str(value)
+                except ValueError as e:
+                    raise ValueError(f"{column_name} 컬럼의 값이 올바르지 않습니다: {str(e)}")
+
+            # INSERT 쿼리 생성
+            columns = list(processed_data.keys())
+            values = list(processed_data.values())
+            placeholders = ','.join(['?' for _ in values])
+            
+            sql = f"""
+                INSERT INTO {table_name} 
+                ({','.join(columns)}) 
+                VALUES ({placeholders})
+            """
+
+            # 쿼리 실행
+            self.database_model._execute(sql, values)
+            self.database_model._commit()
+            return True
+
+        except Exception as e:
+            self.database_model._rollback()
+            self.logger.error(f"데이터 추가 실패: {str(e)}", exc_info=True)
+            raise
+
+    def refresh_table_list(self):
+        """테이블 목록 새로고침"""
+        try:
+            return self.database_model.get_all_tables()
+        except Exception as e:
+            self.logger.error(f"테이블 목록 새로고침 실패: {str(e)}")
+            return []
 

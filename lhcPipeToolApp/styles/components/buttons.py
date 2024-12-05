@@ -1,10 +1,10 @@
 """버튼 스타일 정의"""
 from ..base import COLORS, SIZES, FONTS
 
-def get_button_style(min_width=80):
+def get_button_style(min_width=80, background_color=COLORS['surface']):
     return f"""
         QPushButton {{
-            background-color: {COLORS['surface']};
+            background-color: {background_color};
             border: {SIZES['border_width']}px solid {COLORS['border']};
             border-radius: {SIZES['border_radius']}px;
             color: {COLORS['text']};

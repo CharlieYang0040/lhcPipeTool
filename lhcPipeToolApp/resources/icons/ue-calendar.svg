@@ -1,0 +1,19 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- 메인 캘린더 배경 -->
+    <rect x="4" y="4" width="16" height="16" rx="2" fill="#4A90E2"/>
+    
+    <!-- 캘린더 상단 바 -->
+    <rect x="4" y="4" width="16" height="4" fill="#5C9EE8"/>
+    
+    <!-- 캘린더 고리 -->
+    <rect x="8" y="2" width="2" height="3" rx="1" fill="#4A90E2"/>
+    <rect x="14" y="2" width="2" height="3" rx="1" fill="#4A90E2"/>
+    
+    <!-- 날짜 표시 -->
+    <rect x="7" y="10" width="3" height="3" rx="0.5" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="11" y="10" width="3" height="3" rx="0.5" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="15" y="10" width="3" height="3" rx="0.5" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="7" y="14" width="3" height="3" rx="0.5" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="11" y="14" width="3" height="3" rx="0.5" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="15" y="14" width="3" height="3" rx="0.5" fill="#FFFFFF" opacity="0.9"/>
+</svg>

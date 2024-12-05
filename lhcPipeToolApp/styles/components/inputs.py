@@ -1,7 +1,7 @@
 """입력 컴포넌트 스타일 정의"""
 from ..base import COLORS, SIZES, FONTS
 
-def get_input_style():
+def get_input_style(combo_min_height=0):
     return f"""
         /* 기본 라인 에디트 스타일 */
         QLineEdit {{
@@ -9,12 +9,11 @@ def get_input_style():
             color: {COLORS['text']};
             border: {SIZES['border_width']}px solid {COLORS['border']};
             border-radius: {SIZES['border_radius']}px;
-            padding: 4px {SIZES['spacing_medium']}px;
-            margin: 1px 0;
+            padding: 0 {SIZES['spacing_medium']}px;
+            min-height: {SIZES['input_height']}px;
             font-family: '{FONTS['family']}';
             font-size: {SIZES['font_size']}px;
-            line-height: {SIZES['font_size']}px;
-            selection-background-color: {COLORS['selected']};
+            line-height: {SIZES['input_height']}px;
         }}
 
         QLineEdit:hover {{
@@ -62,11 +61,11 @@ def get_input_style():
             color: {COLORS['text']};
             border: {SIZES['border_width']}px solid {COLORS['border']};
             border-radius: {SIZES['border_radius']}px;
-            padding: {SIZES['spacing_medium']}px;
-            padding-right: {SIZES['spacing_xlarge']}px;
+            padding: 0 {SIZES['spacing_xlarge']}px 0 {SIZES['spacing_medium']}px;
+            min-height: {SIZES['input_height']}px;
             font-family: '{FONTS['family']}';
             font-size: {SIZES['font_size']}px;
-            min-width: 6em;
+            line-height: {SIZES['input_height']}px;
         }}
 
         QComboBox:hover {{
@@ -102,9 +101,11 @@ def get_input_style():
             color: {COLORS['text']};
             border: {SIZES['border_width']}px solid {COLORS['border']};
             border-radius: {SIZES['border_radius']}px;
-            padding: {SIZES['spacing_medium']}px;
+            padding: 0 {SIZES['spacing_large']}px 0 {SIZES['spacing_medium']}px;
+            min-height: {SIZES['input_height']}px;
             font-family: '{FONTS['family']}';
             font-size: {SIZES['font_size']}px;
+            line-height: {SIZES['input_height']}px;
         }}
 
         QSpinBox:hover, QDoubleSpinBox:hover {{
@@ -165,5 +166,99 @@ def get_input_style():
             background-color: {COLORS['info']};
             border-color: {COLORS['info']};
             image: url(lhcPipeToolApp/resources/icons/ue-radio-checked.svg);
+        }}
+
+        /* 날짜/시간 입력 위젯 공통 스타일 */
+        QDateEdit, QTimeEdit, QDateTimeEdit {{
+            background-color: {COLORS['surface']};
+            color: {COLORS['text']};
+            border: {SIZES['border_width']}px solid {COLORS['border']};
+            border-radius: {SIZES['border_radius']}px;
+            padding: 0 {SIZES['spacing_xlarge']}px 0 {SIZES['spacing_medium']}px;
+            min-height: {SIZES['input_height']}px;
+            font-family: '{FONTS['family']}';
+            font-size: {SIZES['font_size']}px;
+            line-height: {SIZES['input_height']}px;
+        }}
+
+        QDateEdit:hover, QTimeEdit:hover, QDateTimeEdit:hover {{
+            border-color: {COLORS['hover']};
+        }}
+
+        QDateEdit:focus, QTimeEdit:focus, QDateTimeEdit:focus {{
+            border-color: {COLORS['info']};
+        }}
+
+        QDateEdit::drop-down, QTimeEdit::drop-down, QDateTimeEdit::drop-down {{
+            border: none;
+            width: {SIZES['icon_size']}px;
+        }}
+
+        QDateEdit::down-arrow, QTimeEdit::down-arrow, QDateTimeEdit::down-arrow {{
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-down.svg);
+            width: {SIZES['icon_size_small']}px;
+            height: {SIZES['icon_size_small']}px;
+        }}
+
+        QDateEdit::up-button, QTimeEdit::up-button, QDateTimeEdit::up-button,
+        QDateEdit::down-button, QTimeEdit::down-button, QDateTimeEdit::down-button {{
+            background-color: transparent;
+            border: none;
+            width: {SIZES['icon_size_small']}px;
+        }}
+
+        QDateEdit::up-arrow, QTimeEdit::up-arrow, QDateTimeEdit::up-arrow {{
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-up.svg);
+            width: {SIZES['icon_size_small']}px;
+            height: {SIZES['icon_size_small']}px;
+        }}
+
+        QDateEdit::down-arrow, QTimeEdit::down-arrow, QDateTimeEdit::down-arrow {{
+            image: url(lhcPipeToolApp/resources/icons/ue-arrow-down.svg);
+            width: {SIZES['icon_size_small']}px;
+            height: {SIZES['icon_size_small']}px;
+        }}
+
+        /* 캘린더 위젯 스타일 */
+        QCalendarWidget QWidget {{
+            background-color: {COLORS['surface']};
+            color: {COLORS['text']};
+        }}
+
+        QCalendarWidget QToolButton {{
+            background-color: transparent;
+            color: {COLORS['text']};
+            border: none;
+            border-radius: {SIZES['border_radius']}px;
+            padding: {SIZES['spacing_small']}px;
+        }}
+
+        QCalendarWidget QToolButton:hover {{
+            background-color: {COLORS['hover']};
+        }}
+
+        QCalendarWidget QMenu {{
+            background-color: {COLORS['surface']};
+            color: {COLORS['text']};
+            border: {SIZES['border_width']}px solid {COLORS['border']};
+        }}
+
+        QCalendarWidget QSpinBox {{
+            background-color: {COLORS['surface']};
+            color: {COLORS['text']};
+            border: {SIZES['border_width']}px solid {COLORS['border']};
+            border-radius: {SIZES['border_radius']}px;
+            padding: {SIZES['spacing_small']}px;
+        }}
+
+        QCalendarWidget QAbstractItemView:enabled {{
+            background-color: {COLORS['surface']};
+            color: {COLORS['text']};
+            selection-background-color: {COLORS['selected']};
+            selection-color: {COLORS['text']};
+        }}
+
+        QCalendarWidget QAbstractItemView:disabled {{
+            color: {COLORS['text_secondary']};
         }}
     """
