@@ -28,8 +28,8 @@ class RefreshService:
                 
             self.logger.info(f"프로젝트 루트 경로: {root_path}")
                 
-            # ProjectService의 동기화 메서드 사용
-            self.project_service.sync_project_structure(root_path)
+            # # ProjectService의 동기화 메서드 사용
+            # self.project_service.sync_project_structure(root_path)
             
             # 성공 로그 기록
             self.refresh_model.log_refresh(
