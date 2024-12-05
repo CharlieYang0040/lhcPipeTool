@@ -270,6 +270,7 @@ class CreateTableDialog(QDialog):
             if column_info:
                 if self.database_service.add_column(self.table_name, column_info):
                     QMessageBox.information(self, "성공", "컬럼이 추가되었습니다.")
+                    super().accept()
                 else:
                     QMessageBox.warning(self, "실패", "컬럼 추가에 실패했습니다.")
             else:
@@ -284,10 +285,8 @@ class CreateTableDialog(QDialog):
             QMessageBox.warning(self, "경고", "삭제할 컬럼을 선택해주세요.")
             return
         
-        # 선택된 컬럼 이름 가져오기
         column_name = selected_items[0].text()
         
-        # 삭제 확인 메시지
         reply = QMessageBox.question(
             self, 
             "확인", 
@@ -652,6 +651,7 @@ class TableManagerDialog(QDialog):
         )
         
         if dialog.exec_() == QDialog.Accepted:
+            self.refresh_tables()
             self.view_table_data()
             
     def setup_data_table(self):
