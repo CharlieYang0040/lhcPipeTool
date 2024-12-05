@@ -1,7 +1,7 @@
 """메인 윈도우"""
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
-    QDialog, QMessageBox, QToolBar, QStyle, QApplication,
+    QMessageBox, QToolBar, QStyle, QApplication,
     QLabel, QSizePolicy
 )
 from .project_tree import ProjectTreeWidget

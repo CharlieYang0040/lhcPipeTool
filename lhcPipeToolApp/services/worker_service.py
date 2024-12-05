@@ -119,6 +119,10 @@ class WorkerService:
     def verify_credentials(self, name, hashed_password):
         """작업자 인증"""
         return self.worker_model.verify_credentials(name, hashed_password)
+    
+    def is_admin(self, worker_id):
+        """작업자가 관리자 인지 확인"""
+        return self.worker_model.is_admin(worker_id)
 
     def reset_password(self, worker_id, new_password):
         """작업자 비밀번호 초기화"""
