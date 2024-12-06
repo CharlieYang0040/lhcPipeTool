@@ -176,7 +176,7 @@ class LoginDialog(QDialog):
             if not ok or not target_username:
                 return
         
-        worker_id = self.worker_service.get_worker_id(target_username)
+        worker_id = self.worker_service.get_worker_by_name(target_username)['id']
         if not worker_id:
             QMessageBox.warning(self, "오류", "존재하지 않는 사용자입니다.")
             return

@@ -27,7 +27,7 @@ class WorkerManagerDialog(QDialog):
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText("작업자 이름")
         self.department_combo = QComboBox()
-        self.department_combo.addItems(["모델링", "애니메이션", "이펙트", "라이팅", "합성"])
+        self.department_combo.addItems(["Animation", "FX", "Lighting", "Editor"])
         add_btn = QPushButton("작업자 추가")
         add_btn.clicked.connect(self.add_worker)
         

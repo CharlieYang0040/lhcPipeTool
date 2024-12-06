@@ -257,8 +257,17 @@ class DetailPanel(QWidget):
             fields_data = self._get_fields_data(item_type, item)
             self._update_fields_data(item_type, fields_data)
 
-            # 프리뷰 표시
-            preview_path = item.get('preview_path')
+            # 프리뷰 경로 가져오기
+            preview_path = None
+            if item_type in ['project', 'sequence', 'shot']:
+                # 최신 버전의 프리뷰 경로 가져오기
+                latest_version = self.version_services[item_type].get_latest_version(item_id)
+                if latest_version:
+                    preview_path = latest_version.get('preview_path')
+                    self.logger.debug(f"최신 버전({latest_version.get('name')})의 프리뷰 경로: {preview_path}")
+            else:
+                # version 타입인 경우 직접 프리뷰 경로 사용
+                preview_path = item.get('preview_path')
             if preview_path and os.path.exists(preview_path):
                 self._show_preview(preview_path)
                 self.logger.debug(f"프리뷰 이미지 표시됨: {preview_path}")

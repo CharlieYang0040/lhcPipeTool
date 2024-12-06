@@ -50,10 +50,11 @@ class BaseVersionService:
             }
             result = self.version_model.create(**create_data)
             if result:
-                self._commit()
+                self.version_model._commit()
                 EventSystem.notify('version_updated')  # 이벤트 발생
                 return result
             else:
+                self.version_model._rollback()
                 raise Exception("버전 생성 실패")
             
         except Exception as e:
@@ -233,11 +234,12 @@ class BaseVersionService:
     def delete_version(self, version_id):
         """버전 삭제"""
         try:
-            version = self.get_version_details(version_id)
-            if not version:
+            if self.version_model.delete(version_id):
+                self.version_model._commit()
+                return True
+            else:
+                self.version_model._rollback()
                 return False
-            return self.version_model.delete(version_id)
-            
         except Exception as e:
             self.logger.error(f"버전 삭제 중 예외 발생: {str(e)}", exc_info=True)
             return False

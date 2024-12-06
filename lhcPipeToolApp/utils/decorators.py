@@ -18,7 +18,7 @@ def require_admin(func):
                                 "작업자 정보가 올바르지 않습니다.")
             return None
 
-        if not Worker(db_connector).is_admin(app_state.current_worker['id']):
+        if not Worker(db_connector).is_admin(app_state.current_worker['name']):
             QMessageBox.warning(None, "권한 없음", 
                                 "이 작업을 수행할 권한이 없습니다.")
             return None

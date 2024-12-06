@@ -193,7 +193,7 @@ class ProjectService:
         
         # 각 시퀀스의 샷들 삭제
         for seq in sequences:
-            self.delete_sequence(seq[0])
+            self.delete_sequence(seq['id'])
         
         # 프로젝트 삭제
         try:
@@ -211,7 +211,7 @@ class ProjectService:
         # 연관된 샷들 삭제
         shots = self.shot_model.get_by_sequence(sequence_id)
         for shot in shots:
-            self.shot_model.delete(shot[0])
+            self.shot_model.delete(shot['id'])
         
         # 시퀀스 삭제
         try:

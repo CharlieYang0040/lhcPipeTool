@@ -16,9 +16,9 @@ class Worker(BaseModel):
         result = self._fetch_one(query, (name, hashed_password))
         return result is not None
         
-    def is_admin(self, worker_id):
+    def is_admin(self, worker_name):
         """작업자가 관리자 인지 확인"""
-        worker = self.get_by_id(worker_id)
+        worker = self.get_by_name(worker_name)
         if worker and worker.get('role') == 'admin':
             return True
         return False
@@ -50,8 +50,16 @@ class Worker(BaseModel):
 
     def get_by_name(self, name):
         """이름으로 작업자 조회"""
-        query = f"SELECT * FROM {self.table_name} WHERE name = ?"
-        return self._fetch_one(query, (name,))
+        try:
+            # 입력된 이름이 한글일 경우를 대비해 적절한 인코딩 처리
+            if isinstance(name, str):
+                name = name.encode('utf-8').decode('utf-8')
+            
+            query = f"SELECT * FROM {self.table_name} WHERE name = ?"
+            return self._fetch_one(query, (name,))
+        except Exception as e:
+            self.logger.error(f"작업자 조회 중 오류 발생: {str(e)}")
+            return None
 
     def update(self, worker_id, name=None, department=None):
         """작업자 정보 수정"""

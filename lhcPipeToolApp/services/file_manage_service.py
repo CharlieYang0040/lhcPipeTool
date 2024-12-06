@@ -99,9 +99,7 @@ class FileManageService:
             
     def get_next_version_number(self, item_type, item_id):
         """다음 버전 번호 가져오기"""
-        try:
-            cursor = self.db_connector.cursor()
-            
+        try:           
             if item_type == "project":
                 table = "project_versions"
                 id_column = "project_id"
@@ -120,11 +118,10 @@ class FileManageService:
                 FROM {table}
                 WHERE {id_column} = ?
             """
-            cursor.execute(query, (item_id,))
-            result = cursor.fetchone()
-            
+            result = self.version_services[item_type].version_model._fetch_one(query, (item_id,))
+            self.logger.debug(f"최대 버전 번호: {result}")
             # 첫 버전이면 1, 아니면 최대 버전 + 1
-            return (result[0] or 0) + 1
+            return (result['max'] or 0) + 1
             
         except Exception as e:
             self.logger.error(f"다음 버전 번호 조회 실패: {str(e)}")

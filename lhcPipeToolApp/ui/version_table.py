@@ -99,22 +99,30 @@ class VersionTableWidget(QWidget):
 
     def show_context_menu(self, pos):
         """컨텍스트 메뉴 표시"""
-        item = self.table.itemAt(pos)
-        if item:
-            menu = QMenu(self)
-            edit_action = menu.addAction("수정 및 재등록")
-            menu.addSeparator()
-            delete_action = menu.addAction("버전 삭제")
-            
-            action = menu.exec_(self.table.viewport().mapToGlobal(pos))
-            if action == delete_action:
-                row = item.row()
-                item_id = self.table.item(row, 0).data(Qt.UserRole)
-                self.delete_version(item_id)
-            elif action == edit_action:
-                row = item.row()
-                item_id = self.table.item(row, 0).data(Qt.UserRole)
-                self.edit_version(item_id)
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            return
+        
+        menu = QMenu(self)
+        edit_action = menu.addAction("수정 및 재등록")
+        menu.addSeparator()
+        delete_action = menu.addAction("버전 삭제")
+        
+        action = menu.exec_(self.table.viewport().mapToGlobal(pos))
+        if action == delete_action:
+            version_ids = []
+            selected_rows = set(item.row() for item in selected_items)
+            for row in selected_rows:
+                version_id = self.table.item(row, 0).data(Qt.UserRole)
+                if version_id != -1:  # 더미 행 제외
+                    version_ids.append(version_id)
+            if version_ids:
+                self.delete_version(version_ids)
+        elif action == edit_action:
+            # 단일 항목만 수정 가능
+            row = selected_items[0].row()
+            item_id = self.table.item(row, 0).data(Qt.UserRole)
+            self.edit_version(item_id)
 
     def edit_version(self, item_id):
         """버전 수정"""
@@ -143,20 +151,31 @@ class VersionTableWidget(QWidget):
             if dialog.exec_() == QDialog.Accepted:
                 self.load_versions(self.app_state.current_item_id)
 
-    def delete_version(self, item_id):
+    def delete_version(self, item_ids):
         """버전 삭제"""
+        # 단일 ID를 리스트로 변환
+        if not isinstance(item_ids, list):
+            item_ids = [item_ids]
+        
+        message = "이 버전을 삭제하시겠습니까?" if len(item_ids) == 1 else f"선택한 {len(item_ids)}개의 버전을 삭제하시겠습니까?"
+        
         reply = QMessageBox.question(
             self, 
             "버전 삭제", 
-            "정말로 이 버전을 삭제하시겠습니까?",
+            message,
             QMessageBox.Yes | QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
-            if self.version_services[self.app_state.current_item_type].delete_version(item_id):
+            success = True
+            for item_id in item_ids:
+                if not self.version_services[self.app_state.current_item_type].delete_version(item_id):
+                    success = False
+                    
+            if success:
                 self.load_versions(self.app_state.current_item_id)
             else:
-                QMessageBox.warning(self, "오류", "버전을 삭제하는데 실패했습니다.")
+                QMessageBox.warning(self, "오류", "일부 버전을 삭제하는데 실패했습니다.")
 
     def load_versions(self, item_id):
         """버전 목록 로드"""
@@ -278,43 +297,18 @@ class VersionTableWidget(QWidget):
         """이벤트 필터"""
         if obj == self.table and event.type() == QEvent.KeyPress:
             if event.key() == Qt.Key_Delete:
-                self.delete_selected_versions()
+                selected_items = self.table.selectedItems()
+                if selected_items:
+                    version_ids = []
+                    selected_rows = set(item.row() for item in selected_items)
+                    for row in selected_rows:
+                        version_id = self.table.item(row, 0).data(Qt.UserRole)
+                        if version_id != -1:  # 더미 행 제외
+                            version_ids.append(version_id)
+                    if version_ids:
+                        self.delete_version(version_ids)
                 return True
         return super().eventFilter(obj, event)
-
-    def delete_selected_versions(self):
-        """선택된 버전들 삭제"""
-        selected_rows = set(item.row() for item in self.table.selectedItems())
-        if not selected_rows:
-            return
-            
-        version_ids = []
-        for row in selected_rows:
-            version_id = self.table.item(row, 0).data(Qt.UserRole)
-            version_ids.append(version_id)
-        
-        if len(version_ids) == 1:
-            message = "이 버전을 삭제하시겠습니까?"
-        else:
-            message = f"선택한 {len(version_ids)}개의 버전을 삭제하시겠습니까?"
-        
-        reply = QMessageBox.question(
-            self, 
-            "버전 삭제", 
-            message,
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            success = True
-            for version_id in version_ids:
-                if not self.version_services[self.app_state.current_item_type].delete_version(version_id):
-                    success = False
-                    
-            if success:
-                self.load_versions(self.app_state.current_item_id)
-            else:
-                QMessageBox.warning(self, "오류", "일부 버전을 삭제하는데 실패했습니다.")
 
     def add_stretch_rows(self):
         """테이블 끝까지 빈 공간을 채우는 더미 행 추가"""
