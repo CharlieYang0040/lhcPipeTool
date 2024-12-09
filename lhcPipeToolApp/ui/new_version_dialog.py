@@ -1,12 +1,12 @@
 """새 버전 생성 다이얼로그"""
 import os
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QApplication,
-                              QPushButton, QLabel, QTextEdit, QComboBox,
-                              QFileDialog, QMessageBox, QHBoxLayout,
-                              QButtonGroup, QRadioButton, QWidget)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QApplication, QMessageBox,
+                              QPushButton, QLabel, QTextEdit, QComboBox, QHBoxLayout,
+                              QButtonGroup, QRadioButton, QWidget, QFileDialog)
 from PySide6.QtCore import Qt, QEvent, QSettings, QTimer
 from PySide6.QtGui import QIcon
 
+from ..config.app_state import AppState
 from ..utils.logger import setup_logger
 from ..utils.preview_generator import PreviewGenerator
 from ..services.file_manage_service import FileManageService
@@ -17,6 +17,7 @@ class NewVersionDialog(QDialog):
         super().__init__(parent)
         self.item_id = item_id
         self.item_type = item_type
+        self.app_state = AppState()
         self.logger = setup_logger(__name__)
         self.preview_generator = PreviewGenerator()
         self.settings = QSettings('LHC', 'PipeTool')
@@ -73,7 +74,7 @@ class NewVersionDialog(QDialog):
         worker_label = QLabel("작업자:")
         worker_label.setFixedWidth(60)
         self.worker_input = QComboBox()
-        self.worker_input.setEditable(True)
+        self.worker_input.setEditable(False)
         self.worker_input.setInsertPolicy(QComboBox.InsertPolicy.InsertAtTop)
         self.worker_input.setMinimumWidth(200)
                 
@@ -218,32 +219,39 @@ class NewVersionDialog(QDialog):
         self.setTabOrder(self.create_button, self.cancel_button)
 
     def load_worker_history(self):
-        """작업자 히스토리 로드"""
+        """현재 작업자 로드"""
         try:
-            workers = self.settings.value('worker_history', [])
-            if workers:
-                self.worker_input.addItems(workers)
+            self.worker_input.addItem(self.app_state.current_worker['name'])
         except Exception as e:
-            self.logger.error(f"작업자 히스토리 로드 실패: {str(e)}")
+            self.logger.error(f"현재 작업자 로드 실패: {str(e)}")
 
-    def save_worker_history(self, worker_name):
-        """작업자 히스토리 저장"""
-        try:
-            workers = self.settings.value('worker_history', [])
-            if not isinstance(workers, list):
-                workers = []
+    # def load_worker_history(self):
+    #     """작업자 히스토리 로드"""
+    #     try:
+    #         workers = self.settings.value('worker_history', [])
+    #         if workers:
+    #             self.worker_input.addItems(workers)
+    #     except Exception as e:
+    #         self.logger.error(f"작업자 히스토리 로드 실패: {str(e)}")
+
+    # def save_worker_history(self, worker_name):
+    #     """작업자 히스토리 저장"""
+    #     try:
+    #         workers = self.settings.value('worker_history', [])
+    #         if not isinstance(workers, list):
+    #             workers = []
             
-            # 중복 제거 및 최근 항목을 앞으로
-            if worker_name in workers:
-                workers.remove(worker_name)
-            workers.insert(0, worker_name)
+    #         # 중복 제거 및 최근 항목을 앞으로
+    #         if worker_name in workers:
+    #             workers.remove(worker_name)
+    #         workers.insert(0, worker_name)
             
-            # 최대 10개까지만 저장
-            workers = workers[:10]
-            self.settings.setValue('worker_history', workers)
+    #         # 최대 10개까지만 저장
+    #         workers = workers[:10]
+    #         self.settings.setValue('worker_history', workers)
             
-        except Exception as e:
-            self.logger.error(f"작업자 히스토리 저장 실패: {str(e)}")
+    #     except Exception as e:
+    #         self.logger.error(f"작업자 히스토리 저장 실패: {str(e)}")
 
     def handle_file_path_change(self):
         """파일 경로 입력 완료 처리"""
@@ -294,10 +302,7 @@ class NewVersionDialog(QDialog):
             preview_path = os.path.normpath(self.preview_path_input.text().strip())
             if preview_path == ".":
                 preview_path = self.preview_generator.create_preview(file_info['file_path'])
-            
-            # 작업자 히스토리 저장
-            self.save_worker_history(worker_name)
-            
+
             # 버전 생성
             success = self.version_services[self.item_type].create_version(
                 item_id=self.item_id,
