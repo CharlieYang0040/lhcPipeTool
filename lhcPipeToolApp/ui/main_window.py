@@ -298,14 +298,14 @@ class MainWindow(QMainWindow):
         )
         dialog.exec_()
 
-    # @require_admin
+    @require_admin
     def show_worker_manager(self):
         """작업자 관리 다이얼로그"""
         from .worker_manager_dialog import WorkerManagerDialog
         dialog = WorkerManagerDialog(self.worker_service, self)
         dialog.exec_()
 
-    # @require_admin
+    @require_admin
     def show_table_manager(self):
         """테이블 관리 다이얼로그"""
         from .table_manager_dialog import TableManagerDialog

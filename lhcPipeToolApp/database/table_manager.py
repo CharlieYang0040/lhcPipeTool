@@ -89,7 +89,7 @@ class TableManager:
                 # 설정이 없을 때만 삽입
                 cursor.execute("""
                     INSERT INTO settings (setting_key, setting_value, description)
-                    VALUES ('render_root', 'D:/WORKDATA/lhcPipeTool/TestSequence', '렌더 파일 저장 경로')
+                    VALUES ('render_root', '\\\\DESKTOP-LHG738J:\\Project_TEST\\Render', '렌더 파일 저장 경로')
                 """)
                 self.db_connector.commit()
                 self.logger.info("기본 설정값 초기화 완료")

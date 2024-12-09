@@ -44,3 +44,8 @@ class SettingsService:
         except Exception as e:
             self.logger.error(f"전체 설정 조회 실패: {str(e)}")
             return {}
+
+    def get_render_output_path(self):
+        """렌더 출력 경로 조회"""
+        return self.get_setting('render_output')
+

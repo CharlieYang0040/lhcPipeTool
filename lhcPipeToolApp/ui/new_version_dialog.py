@@ -1,8 +1,9 @@
 """새 버전 생성 다이얼로그"""
 import os
+import asyncio
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QApplication, QMessageBox,
                               QPushButton, QLabel, QTextEdit, QComboBox, QHBoxLayout,
-                              QButtonGroup, QRadioButton, QWidget, QFileDialog)
+                              QButtonGroup, QRadioButton, QWidget, QFileDialog, QProgressBar)
 from PySide6.QtCore import Qt, QEvent, QSettings, QTimer
 from PySide6.QtGui import QIcon
 
@@ -157,6 +158,11 @@ class NewVersionDialog(QDialog):
         comment_layout.addWidget(self.comment_input)
         layout.addLayout(comment_layout)
         
+        # 진행률 표시바 추가
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+        
         # 버튼 컨테이너
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
@@ -271,28 +277,29 @@ class NewVersionDialog(QDialog):
         if file_path:
             self.file_path_input.setText(file_path)
             
-    def create_version(self):
+    async def async_create_version(self):
+        """버전 생성 비동기 처리"""
         worker_name = self.worker_input.currentText().strip()
         source_file = os.path.normpath(self.file_path_input.text().strip())
         
         if not worker_name:
             QMessageBox.warning(self, "경고", "작업자 이름을 입력해주세요!")
-            return
+            return False
             
         if not source_file:
             QMessageBox.warning(self, "경고", "파일을 선택해주세요!")
-            return
+            return False
             
         if not os.path.exists(source_file):
             QMessageBox.warning(self, "경고", "선택한 파일이 존재하지 않습니다!")
-            return
+            return False
 
         try:
-            # 파일 처리
-            file_info = self.file_manager.process_version_file(
+            # 파일 처리 (비동기)
+            file_info = await self.file_manager.process_version_file(
+                source_file,
                 self.item_type,
-                self.item_id,
-                source_file
+                self.item_id
             )
             
             # 상태 가져오기
@@ -315,6 +322,24 @@ class NewVersionDialog(QDialog):
                 status=status
             )
 
+            return success
+
+        except Exception as e:
+            self.logger.error(f"버전 생성 중 오류 발생: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "오류", f"버전 생성 중 오류가 발생했습니다: {str(e)}")
+            return False
+
+    def create_version(self):
+        """버전 생성 버튼 클릭 핸들러"""
+        # 버튼 비활성화
+        self.create_button.setEnabled(False)
+        self.cancel_button.setEnabled(False)
+        
+        try:
+            # 비동기 작업 실행
+            loop = asyncio.get_event_loop()
+            success = loop.run_until_complete(self.async_create_version())
+
             if success:
                 self.accept()
             else:
@@ -323,6 +348,17 @@ class NewVersionDialog(QDialog):
         except Exception as e:
             self.logger.error(f"버전 생성 중 오류 발생: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "오류", f"버전 생성 중 오류가 발생했습니다: {str(e)}")
+            
+        finally:
+            # 버튼 다시 활성화
+            self.create_button.setEnabled(True)
+            self.cancel_button.setEnabled(True)
+
+    def show_progress(self, progress: float):
+        """파일 복사 진행률 표시"""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(int(progress))
+        QApplication.processEvents()  # UI 업데이트
 
     def dragEnterEvent(self, event):
         """드래그 진입 이벤트 처리"""

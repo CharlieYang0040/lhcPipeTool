@@ -394,7 +394,7 @@ class DatabaseService:
             self.logger.debug(f"테이블 컬럼 정보: {columns_info}")
             
             column_types = {
-                col['column_name'].strip(): col['data_type']  # 키 이름 수정
+                col['column_name'].strip(): col['data_type']
                 for col in columns_info
             }
             
@@ -421,9 +421,14 @@ class DatabaseService:
                 processed_data = {}
                 for col, value in row_data.items():
                     col_upper = col.upper()
-                    if col_upper == 'UPDATED_AT':
+                    # CREATED_AT 컬럼은 처리에서 제외
+                    if col_upper == 'CREATED_AT':
+                        continue
+                    # UPDATED_AT은 현재 시간으로 설정
+                    elif col_upper == 'UPDATED_AT':
                         processed_data[col] = datetime.now()
-                    elif value == '' and column_types.get(col_upper) not in [37]:  # CHAR 타입만 빈 문자열 허용
+                    # 빈 문자열 처리 (CHAR 타입 제외)
+                    elif value == '' and column_types.get(col_upper) not in [37]:
                         processed_data[col] = None
                     else:
                         processed_data[col] = value

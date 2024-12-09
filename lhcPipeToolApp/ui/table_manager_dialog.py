@@ -552,9 +552,12 @@ class TableManagerDialog(QDialog):
         self.table_manager = table_manager
         self.database_service = database_service
         self.logger = setup_logger(__name__)
+        self.modified_rows = set()
+        self.is_loading_data = False
         self.setup_ui()
         self.load_tables()
         self.apply_styles()
+
             
     def setup_ui(self):
         """UI 초기화"""
@@ -746,19 +749,21 @@ class TableManagerDialog(QDialog):
 
     def on_item_changed(self, item):
         """테이블 아이템 변경 시 처리"""
-        self.delete_btn.setEnabled(True)
-        self.save_changes_btn.setEnabled(True)
+        if not self.is_loading_data:
+            self.modified_rows.add(item.row())
+            self.delete_btn.setEnabled(True)
+            self.save_changes_btn.setEnabled(True)
         
     def save_changes(self):
         """변경사항 저장"""
         table_name = self.table_combo.currentText()
-        if not table_name:
+        if not table_name or not self.modified_rows:
             return
 
         try:
-            # 변경된 데이터 수집
+            # 변경된 행의 데이터만 수집
             updated_data = []
-            for row in range(self.data_table.rowCount()):
+            for row in self.modified_rows:
                 row_data = {}
                 for col in range(self.data_table.columnCount()):
                     header = self.data_table.horizontalHeaderItem(col).text()
@@ -769,6 +774,8 @@ class TableManagerDialog(QDialog):
 
             # 데이터 업데이트
             if self.database_service.update_table_data(table_name, updated_data):
+                self.modified_rows.clear()
+                self.delete_btn.setEnabled(False)
                 self.save_changes_btn.setEnabled(False)
                 QMessageBox.information(self, "성공", "변경사항이 저장되었습니다.")
             else:
@@ -851,6 +858,7 @@ class TableManagerDialog(QDialog):
             return
         
         try:
+            self.is_loading_data = True
             # 먼저 테이블의 컬럼 구조 조회
             columns = self.database_service.get_table_structure(table_name)
             if not columns:
@@ -875,13 +883,20 @@ class TableManagerDialog(QDialog):
                 # 데이터가 없는 경우 빈 테이블 표시
                 self.data_table.setRowCount(0)
             
-            # 컬럼 크 자동 조정
+            # 컬럼 크기 자동 조정
             self.data_table.resizeColumnsToContents()
+            self.modified_rows.clear()
+            self.delete_btn.setEnabled(False)
+            self.save_changes_btn.setEnabled(False)
             
         except Exception as e:
             self.logger.error(f"테이블 데이터 조회 실패: {str(e)}")
             QMessageBox.warning(self, "오류", f"데이터 조회 실패: {str(e)}")
+
+        finally:
+            self.is_loading_data = False
             
+
     def recreate_table(self):
         """선택된 테이블 재생성"""
         table_name = self.table_combo.currentText()

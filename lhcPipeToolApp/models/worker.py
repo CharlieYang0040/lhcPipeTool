@@ -6,7 +6,7 @@ class Worker(BaseModel):
     def __init__(self, db_connector):
         super().__init__(db_connector)
         self.table_name = "workers"
-        
+
     def verify_credentials(self, name, hashed_password):
         """사용자 인증"""
         query = """
@@ -83,7 +83,7 @@ class Worker(BaseModel):
             WHERE id = ?
         """
         return self._execute(query, tuple(params))
-    
+
     def delete(self, worker_id):
         """작업자 삭제"""
         query = f"DELETE FROM {self.table_name} WHERE id = ?"

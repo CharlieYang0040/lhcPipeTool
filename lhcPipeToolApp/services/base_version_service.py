@@ -248,10 +248,10 @@ class BaseVersionService:
         """렌더 파일 저장 루트 경로"""
         try:
             result = self._fetch_one("SELECT setting_value FROM settings WHERE setting_key = 'render_root'")
-            return result[0] if result else "D:/WORKDATA/lhcPipeTool/TestSequence"
+            return result[0] if result else "\\\\DESKTOP-LHG738J:\\Project_TEST\\Render"
         except Exception as e:
             self.logger.error(f"렌더 경로 조회 실패: {str(e)}")
-            return "D:/WORKDATA/lhcPipeTool/TestSequence"
+            return "\\\\DESKTOP-LHG738J:\\Project_TEST\\Render"
 
     def get_foreign_key(self):
         """외래키 필드명 반환 - 하위 클래스에서 구현"""

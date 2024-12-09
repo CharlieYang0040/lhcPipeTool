@@ -4,13 +4,14 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QMessageBox,
     QLabel, QLineEdit, QComboBox
 )
-from PySide6.QtCore import Qt
+from ..utils.logger import setup_logger
 from ..styles.components import get_dialog_style, get_button_style, get_table_style, get_input_style
 
 class WorkerManagerDialog(QDialog):
     def __init__(self, worker_service, parent=None):
         super().__init__(parent)
         self.worker_service = worker_service
+        self.logger = setup_logger(__name__)
         self.setup_ui()
         self.load_workers()
         
@@ -96,8 +97,8 @@ class WorkerManagerDialog(QDialog):
             return
             
         try:
-            self.worker_service.create_worker(name, department=department)
-            self.logger.info(f"새 작업자 추가: 이름={name}, 부서={department}")
+            self.worker_service.create_worker(name, 'lion', department=department)
+            self.logger.info(f"새 작업자 추가: 이름={name}, 비밀번호=lion, 부서={department}")
             self.name_edit.clear()
             self.load_workers()
         except ValueError as e:
